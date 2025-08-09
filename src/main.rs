@@ -3,6 +3,7 @@ use std::fs;
 use wasm_example::reverb::{reverb, ReverbArgs};
 use wasm_example::reverse::{reverse, ReverseArgs};
 use wasm_example::reverb_reverse::{reverb_reverse, ReverbReverseArgs};
+use wasm_example::speed::{speed, SpeedArgs};
 
 #[derive(Parser)]
 #[command(name = "wav-effects")]
@@ -19,6 +20,7 @@ enum Commands {
     Reverb(ReverbArgs),
     Reverse(ReverseArgs),
     ReverbReverse(ReverbReverseArgs),
+    Speed(SpeedArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -43,6 +45,13 @@ fn main() -> Result<(), String> {
             println!("Applying reverb and reverse to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = reverb_reverse(input_wav, args.delay, args.decay)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Speed(args) => {
+            println!("Changing speed of {}...", args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = speed(input_wav, args.factor)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
