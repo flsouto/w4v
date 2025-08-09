@@ -2,6 +2,7 @@ use wasm_bindgen::prelude::*;
 use hound::{WavReader, SampleFormat};
 use std::io::Cursor;
 use js_sys;
+use clap::Parser;
 
 pub fn reverse(input_wav: Vec<u8>) -> Result<Vec<u8>, String> {
     let cursor = Cursor::new(input_wav);
@@ -91,4 +92,16 @@ pub fn reverse_js(input_wav: &[u8]) -> Result<js_sys::Uint8Array, JsValue> {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
+}
+
+#[derive(Parser, Debug)]
+#[command(about = "Reverses a WAV file", long_about = None)]
+pub struct ReverseArgs {
+    /// Input WAV file
+    #[arg()]
+    pub input: String,
+
+    /// Output WAV file
+    #[arg()]
+    pub output: String,
 }

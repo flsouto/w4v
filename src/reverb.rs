@@ -2,6 +2,7 @@ use wasm_bindgen::prelude::*;
 use hound::{WavReader, SampleFormat};
 use std::io::Cursor;
 use js_sys;
+use clap::Parser;
 
 pub fn reverb(input_wav: Vec<u8>, delay_ms: u32, decay: f32) -> Result<Vec<u8>, String> {
     let cursor = Cursor::new(input_wav);
@@ -77,4 +78,24 @@ pub fn reverb_js(input_wav: &[u8], delay_ms: u32, decay: f32) -> Result<js_sys::
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
+}
+
+#[derive(Parser, Debug)]
+#[command(about = "Applies a reverb effect to a WAV file", long_about = None)]
+pub struct ReverbArgs {
+    /// Input WAV file
+    #[arg()]
+    pub input: String,
+
+    /// Output WAV file
+    #[arg()]
+    pub output: String,
+
+    /// Delay in milliseconds
+    #[arg(long, default_value_t = 400)]
+    pub delay: u32,
+
+    /// Decay factor
+    #[arg(long, default_value_t = 0.5)]
+    pub decay: f32,
 }
