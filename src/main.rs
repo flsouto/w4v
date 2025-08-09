@@ -7,6 +7,8 @@ use w4v::speed::{speed, SpeedArgs};
 use w4v::len::{len, LenArgs};
 use w4v::resize::{resize, ResizeArgs};
 use w4v::flanger::{flanger, FlangerArgs};
+use w4v::cut::{cut, CutArgs};
+
 
 #[derive(Parser)]
 #[command(name = "wav-effects")]
@@ -27,6 +29,7 @@ enum Commands {
     Len(LenArgs),
     Resize(ResizeArgs),
     Flanger(FlangerArgs),
+    Cut(CutArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -78,6 +81,13 @@ fn main() -> Result<(), String> {
             println!("Applying flanger to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = flanger(input_wav, args.delay, args.depth, args.rate, args.feedback)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Cut(args) => {
+            println!("Cutting {}...", args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = cut(input_wav, args.start_offset.clone(), args.duration.clone())?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }

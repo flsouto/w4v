@@ -6,6 +6,8 @@ pub mod len;
 pub mod resize;
 pub mod utils;
 pub mod flanger;
+pub mod time;
+pub mod cut;
 
 pub use reverb::reverb_js;
 pub use reverse::reverse_js;
@@ -14,3 +16,4 @@ pub use speed::speed_js;
 pub use len::len_js;
 pub use resize::resize_js;
 pub use flanger::flanger_js;
+pub use cut::cut_js;
