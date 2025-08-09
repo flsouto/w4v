@@ -1,11 +1,11 @@
 use clap::Parser;
 use std::fs;
-use wasm_example::reverb::{reverb, ReverbArgs};
-use wasm_example::reverse::{reverse, ReverseArgs};
-use wasm_example::reverb_reverse::{reverb_reverse, ReverbReverseArgs};
-use wasm_example::speed::{speed, SpeedArgs};
-use wasm_example::len::{len, LenArgs};
-use wasm_example::resize::{resize, ResizeArgs};
+use w4v::reverb::{reverb, ReverbArgs};
+use w4v::reverse::{reverse, ReverseArgs};
+use w4v::reverb_reverse::{reverb_reverse, ReverbReverseArgs};
+use w4v::speed::{speed, SpeedArgs};
+use w4v::len::{len, LenArgs};
+use w4v::resize::{resize, ResizeArgs};
 
 #[derive(Parser)]
 #[command(name = "wav-effects")]
