@@ -9,11 +9,12 @@
   <input type="file" id="file" accept=".wav" />
   <button id="reverbBtn">Reverb</button>
   <button id="reverseBtn">Reverse</button>
+  <button id="reverbReverseBtn">Reverb then Reverse</button>
   <br><br>
   <audio id="player" controls></audio>
 
   <script type="module">
-    import init, { reverb_js, reverse_js } from "./pkg/wasm_example.js";
+    import init, { reverb_js, reverse_js, reverb_reverse_js } from "./pkg/wasm_example.js";
 
     await init();
 
@@ -42,6 +43,22 @@
 
         try {
           const processed = reverse_js(uint8Array);
+          const blob = new Blob([processed], { type: "audio/wav" });
+          document.getElementById("player").src = URL.createObjectURL(blob);
+        } catch (e) {
+          alert("Error: " + e);
+        }
+    });
+
+    document.getElementById("reverbReverseBtn").addEventListener("click", async () => {
+      const fileInput = document.getElementById("file");
+      if (!fileInput.files.length) return alert("Choose a WAV first!");
+
+      const arrayBuffer = await fileInput.files[0].arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+        try {
+          const processed = reverb_reverse_js(uint8Array, 200, .5);
           const blob = new Blob([processed], { type: "audio/wav" });
           document.getElementById("player").src = URL.createObjectURL(blob);
         } catch (e) {
