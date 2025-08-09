@@ -1,15 +1,12 @@
 use wasm_bindgen::prelude::*;
-use hound::{WavReader, SampleFormat};
+use hound::{SampleFormat};
 use std::io::Cursor;
 use js_sys;
 use clap::Parser;
+use crate::utils::get_samples;
 
 pub fn reverse(input_wav: Vec<u8>) -> Result<Vec<u8>, String> {
-    let cursor = Cursor::new(input_wav);
-    let reader = WavReader::new(cursor)
-        .map_err(|e| format!("Invalid WAV: {}", e))?;
-
-    let spec = reader.spec();
+    let (samples, spec) = get_samples(input_wav)?;
 
     let mut out_bytes: Vec<u8> = Vec::new();
     {
@@ -22,61 +19,10 @@ pub fn reverse(input_wav: Vec<u8>) -> Result<Vec<u8>, String> {
             sample_format: SampleFormat::Int,
         }).map_err(|e| format!("Write error: {}", e))?;
 
-        match (spec.bits_per_sample, spec.sample_format) {
-            (16, SampleFormat::Int) => {
-                let samples: Vec<i16> = reader
-                    .into_samples::<i16>()
-                    .map(|s| s.unwrap_or(0))
-                    .collect();
-
-                for s in samples.into_iter().rev() {
-                    writer.write_sample(s)
-                        .map_err(|e| format!("Write sample error: {}", e))?;
-                }
-            }
-            (24, SampleFormat::Int) => {
-                let samples: Vec<i32> = reader
-                    .into_samples::<i32>()
-                    .map(|s| s.unwrap_or(0))
-                    .collect();
-
-                for s in samples.into_iter().rev() {
-                    let val = (s >> 8) as i16; // downscale 24-bit to 16-bit
-                    writer.write_sample(val)
-                        .map_err(|e| format!("Write sample error: {}", e))?;
-                }
-            }
-            (32, SampleFormat::Int) => {
-                let samples: Vec<i32> = reader
-                    .into_samples::<i32>()
-                    .map(|s| s.unwrap_or(0))
-                    .collect();
-
-                for s in samples.into_iter().rev() {
-                    // downscale 32-bit int to 16-bit by shifting right 16 bits
-                    let val = (s >> 16) as i16;
-                    writer.write_sample(val)
-                        .map_err(|e| format!("Write sample error: {}", e))?;
-                }
-            }
-            (32, SampleFormat::Float) => {
-                let samples: Vec<f32> = reader
-                    .into_samples::<f32>()
-                    .map(|s| s.unwrap_or(0.0))
-                    .collect();
-
-                for s in samples.into_iter().rev() {
-                    let clamped = s.clamp(-1.0, 1.0);
-                    let val = (clamped * i16::MAX as f32) as i16;
-                    writer.write_sample(val)
-                        .map_err(|e| format!("Write sample error: {}", e))?;
-                }
-            }
-            _ => {
-                return Err(
-                    format!("Unsupported WAV format: {} bits {:?}", spec.bits_per_sample, spec.sample_format),
-                );
-            }
+        for s in samples.into_iter().rev() {
+            let val = (s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
+            writer.write_sample(val)
+                .map_err(|e| format!("Write sample error: {}", e))?;
         }
 
         writer.finalize()

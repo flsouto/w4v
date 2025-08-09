@@ -1,7 +1,7 @@
-use hound::{WavReader, SampleFormat};
+use hound::{WavReader, SampleFormat, WavSpec};
 use std::io::Cursor;
 
-pub fn get_samples(input_wav: Vec<u8>) -> Result<Vec<f32>, String> {
+pub fn get_samples(input_wav: Vec<u8>) -> Result<(Vec<f32>, WavSpec), String> {
     let cursor = Cursor::new(input_wav);
     let reader = WavReader::new(cursor)
         .map_err(|e| format!("Invalid WAV: {}", e))?;
@@ -23,5 +23,5 @@ pub fn get_samples(input_wav: Vec<u8>) -> Result<Vec<f32>, String> {
             .collect(),
         _ => return Err("Unsupported WAV format".to_string()),
     };
-    Ok(samples)
+    Ok((samples, spec))
 }

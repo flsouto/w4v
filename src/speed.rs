@@ -1,36 +1,17 @@
 use wasm_bindgen::prelude::*;
-use hound::{WavReader, SampleFormat};
+use hound::{SampleFormat};
 use std::io::Cursor;
 use js_sys;
 use clap::Parser;
+use crate::utils::get_samples;
 
 pub fn speed(input_wav: Vec<u8>, factor: f32) -> Result<Vec<u8>, String> {
     if factor <= 0.0 {
         return Err("Speed factor must be positive.".to_string());
     }
 
-    let cursor = Cursor::new(input_wav);
-    let reader = WavReader::new(cursor)
-        .map_err(|e| format!("Invalid WAV: {}", e))?;
-
-    let spec = reader.spec();
+    let (samples, spec) = get_samples(input_wav)?;
     let channels = spec.channels as usize;
-
-    let samples: Vec<f32> = match (spec.bits_per_sample, spec.sample_format) {
-        (16, SampleFormat::Int) => reader.into_samples::<i16>()
-            .map(|s| s.unwrap_or(0) as f32 / i16::MAX as f32)
-            .collect(),
-        (24, SampleFormat::Int) => reader.into_samples::<i32>()
-            .map(|s| s.unwrap_or(0) as f32 / (1 << 23) as f32)
-            .collect(),
-        (32, SampleFormat::Int) => reader.into_samples::<i32>()
-            .map(|s| s.unwrap_or(0) as f32 / i32::MAX as f32)
-            .collect(),
-        (32, SampleFormat::Float) => reader.into_samples::<f32>()
-            .map(|s| s.unwrap_or(0.0))
-            .collect(),
-        _ => return Err("Unsupported WAV format".to_string()),
-    };
 
     let num_samples = samples.len() / channels;
     let new_num_samples = (num_samples as f32 / factor) as usize;

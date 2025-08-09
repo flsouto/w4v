@@ -135,7 +135,7 @@ mod tests {
         let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
         let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
 
-        let original_samples = crate::utils::get_samples(input_wav.clone()).expect("Failed to get original samples");
+        let (original_samples, _) = crate::utils::get_samples(input_wav.clone()).expect("Failed to get original samples");
         let original_avg_abs_value: f32 = original_samples.iter().map(|s| s.abs()).sum::<f32>() / original_samples.len() as f32;
 
         // Apply reverb with some parameters
@@ -143,7 +143,7 @@ mod tests {
         let decay = 0.5;
         let output_wav = reverb(input_wav.clone(), delay_ms, decay).expect("Reverb function failed");
 
-        let processed_samples = crate::utils::get_samples(output_wav).expect("Failed to get processed samples");
+        let (processed_samples, _) = crate::utils::get_samples(output_wav).expect("Failed to get processed samples");
         let processed_avg_abs_value: f32 = processed_samples.iter().map(|s| s.abs()).sum::<f32>() / processed_samples.len() as f32;
 
         // Assert that the average absolute sample value increases
