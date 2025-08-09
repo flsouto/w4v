@@ -101,3 +101,30 @@ pub struct SpeedArgs {
     #[arg()]
     pub factor: f32,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use crate::len::len;
+
+    #[test]
+    fn test_speed_factor() {
+        let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
+        let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
+
+        let original_duration = len(input_wav.clone()).expect("Failed to get original duration");
+
+        // Test with factor < 1 (slower speed, longer duration)
+        let factor_slower = 0.5;
+        let output_wav_slower = speed(input_wav.clone(), factor_slower).expect("Speed function failed for slower factor");
+        let slower_duration = len(output_wav_slower).expect("Failed to get slower duration");
+        assert!(slower_duration > original_duration, "Slower speed should result in longer duration");
+
+        // Test with factor > 1 (faster speed, shorter duration)
+        let factor_faster = 2.0;
+        let output_wav_faster = speed(input_wav.clone(), factor_faster).expect("Speed function failed for faster factor");
+        let faster_duration = len(output_wav_faster).expect("Failed to get faster duration");
+        assert!(faster_duration < original_duration, "Faster speed should result in shorter duration");
+    }
+}
