@@ -87,7 +87,7 @@ fn main() -> Result<(), String> {
         Commands::Cut(args) => {
             println!("Cutting {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = cut(input_wav, args.start_offset.clone(), args.duration.clone())?;
+            let output_wav = cut(input_wav, &args.start_offset, &args.duration)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }

@@ -1,3 +1,4 @@
+pub mod time;
 pub mod reverb;
 pub mod reverse;
 pub mod reverb_reverse;
@@ -6,7 +7,6 @@ pub mod len;
 pub mod resize;
 pub mod utils;
 pub mod flanger;
-pub mod time;
 pub mod cut;
 
 pub use reverb::reverb_js;
