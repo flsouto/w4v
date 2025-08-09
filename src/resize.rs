@@ -42,3 +42,32 @@ pub struct ResizeArgs {
     #[arg()]
     pub new_duration: f32,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use crate::len::len;
+
+    #[test]
+    fn test_resize_effect() {
+        let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
+        let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
+
+        let original_duration = len(input_wav.clone()).expect("Failed to get original duration");
+
+        // Test with shorter duration
+        let shorter_duration = original_duration / 2.0;
+        let output_wav_shorter = resize(input_wav.clone(), shorter_duration).expect("Resize function failed for shorter duration");
+        let processed_shorter_duration = len(output_wav_shorter.clone()).expect("Failed to get processed shorter duration");
+        assert!((processed_shorter_duration - shorter_duration).abs() < 0.01, "Shorter duration should be accurate");
+        assert_ne!(input_wav, output_wav_shorter, "Shorter resize should modify content");
+
+        // Test with longer duration
+        let longer_duration = original_duration * 2.0;
+        let output_wav_longer = resize(input_wav.clone(), longer_duration).expect("Resize function failed for longer duration");
+        let processed_longer_duration = len(output_wav_longer.clone()).expect("Failed to get processed longer duration");
+        assert!((processed_longer_duration - longer_duration).abs() < 0.01, "Longer duration should be accurate");
+        assert_ne!(input_wav, output_wav_longer, "Longer resize should modify content");
+    }
+}
