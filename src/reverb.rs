@@ -1,13 +1,12 @@
-
 use wasm_bindgen::prelude::*;
 use hound::{WavReader, SampleFormat};
 use std::io::Cursor;
+use js_sys;
 
-#[wasm_bindgen]
-pub fn reverb(input_wav: &[u8], delay_ms: u32, decay: f32) -> Result<Vec<u8>, JsValue> {
+pub fn reverb(input_wav: Vec<u8>, delay_ms: u32, decay: f32) -> Result<Vec<u8>, String> {
     let cursor = Cursor::new(input_wav);
     let reader = WavReader::new(cursor)
-        .map_err(|e| JsValue::from_str(&format!("Invalid WAV: {}", e)))?;
+        .map_err(|e| format!("Invalid WAV: {}", e))?;
 
     let spec = reader.spec();
     let sample_rate = spec.sample_rate as usize;
@@ -26,7 +25,7 @@ pub fn reverb(input_wav: &[u8], delay_ms: u32, decay: f32) -> Result<Vec<u8>, Js
         (32, SampleFormat::Float) => reader.into_samples::<f32>()
             .map(|s| s.unwrap_or(0.0))
             .collect(),
-        _ => return Err(JsValue::from_str("Unsupported WAV format")),
+        _ => return Err("Unsupported WAV format".to_string()),
     };
 
     // Mono or stereo channels (interleaved)
@@ -58,16 +57,24 @@ pub fn reverb(input_wav: &[u8], delay_ms: u32, decay: f32) -> Result<Vec<u8>, Js
             sample_rate: spec.sample_rate,
             bits_per_sample: 16,
             sample_format: SampleFormat::Int,
-        }).map_err(|e| JsValue::from_str(&format!("Write error: {}", e)))?;
+        }).map_err(|e| format!("Write error: {}", e))?;
 
         for sample in output {
             let val = (sample * i16::MAX as f32) as i16;
             writer.write_sample(val)
-                .map_err(|e| JsValue::from_str(&format!("Write sample error: {}", e)))?;
+                .map_err(|e| format!("Write sample error: {}", e))?;
         }
         writer.finalize()
-            .map_err(|e| JsValue::from_str(&format!("Finalize error: {}", e)))?;
+            .map_err(|e| format!("Finalize error: {}", e))?;
     }
 
     Ok(out_bytes)
+}
+
+#[wasm_bindgen]
+pub fn reverb_js(input_wav: &[u8], delay_ms: u32, decay: f32) -> Result<js_sys::Uint8Array, JsValue> {
+    match reverb(input_wav.to_vec(), delay_ms, decay) {
+        Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
+        Err(e) => Err(JsValue::from_str(&e)),
+    }
 }

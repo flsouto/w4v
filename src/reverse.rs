@@ -1,12 +1,12 @@
 use wasm_bindgen::prelude::*;
 use hound::{WavReader, SampleFormat};
 use std::io::Cursor;
+use js_sys;
 
-#[wasm_bindgen]
-pub fn reverse(input_wav: &[u8]) -> Result<Vec<u8>, JsValue> {
+pub fn reverse(input_wav: Vec<u8>) -> Result<Vec<u8>, String> {
     let cursor = Cursor::new(input_wav);
     let reader = WavReader::new(cursor)
-        .map_err(|e| JsValue::from_str(&format!("Invalid WAV: {}", e)))?;
+        .map_err(|e| format!("Invalid WAV: {}", e))?;
 
     let spec = reader.spec();
 
@@ -19,7 +19,7 @@ pub fn reverse(input_wav: &[u8]) -> Result<Vec<u8>, JsValue> {
             sample_rate: spec.sample_rate,
             bits_per_sample: 16,
             sample_format: SampleFormat::Int,
-        }).map_err(|e| JsValue::from_str(&format!("Write error: {}", e)))?;
+        }).map_err(|e| format!("Write error: {}", e))?;
 
         match (spec.bits_per_sample, spec.sample_format) {
             (16, SampleFormat::Int) => {
@@ -30,7 +30,7 @@ pub fn reverse(input_wav: &[u8]) -> Result<Vec<u8>, JsValue> {
 
                 for s in samples.into_iter().rev() {
                     writer.write_sample(s)
-                        .map_err(|e| JsValue::from_str(&format!("Write sample error: {}", e)))?;
+                        .map_err(|e| format!("Write sample error: {}", e))?;
                 }
             }
             (24, SampleFormat::Int) => {
@@ -42,7 +42,7 @@ pub fn reverse(input_wav: &[u8]) -> Result<Vec<u8>, JsValue> {
                 for s in samples.into_iter().rev() {
                     let val = (s >> 8) as i16; // downscale 24-bit to 16-bit
                     writer.write_sample(val)
-                        .map_err(|e| JsValue::from_str(&format!("Write sample error: {}", e)))?;
+                        .map_err(|e| format!("Write sample error: {}", e))?;
                 }
             }
             (32, SampleFormat::Int) => {
@@ -55,7 +55,7 @@ pub fn reverse(input_wav: &[u8]) -> Result<Vec<u8>, JsValue> {
                     // downscale 32-bit int to 16-bit by shifting right 16 bits
                     let val = (s >> 16) as i16;
                     writer.write_sample(val)
-                        .map_err(|e| JsValue::from_str(&format!("Write sample error: {}", e)))?;
+                        .map_err(|e| format!("Write sample error: {}", e))?;
                 }
             }
             (32, SampleFormat::Float) => {
@@ -68,19 +68,27 @@ pub fn reverse(input_wav: &[u8]) -> Result<Vec<u8>, JsValue> {
                     let clamped = s.clamp(-1.0, 1.0);
                     let val = (clamped * i16::MAX as f32) as i16;
                     writer.write_sample(val)
-                        .map_err(|e| JsValue::from_str(&format!("Write sample error: {}", e)))?;
+                        .map_err(|e| format!("Write sample error: {}", e))?;
                 }
             }
             _ => {
-                return Err(JsValue::from_str(
-                    &format!("Unsupported WAV format: {} bits {:?}", spec.bits_per_sample, spec.sample_format),
-                ));
+                return Err(
+                    format!("Unsupported WAV format: {} bits {:?}", spec.bits_per_sample, spec.sample_format),
+                );
             }
         }
 
         writer.finalize()
-            .map_err(|e| JsValue::from_str(&format!("Finalize error: {}", e)))?;
+            .map_err(|e| format!("Finalize error: {}", e))?;
     }
 
     Ok(out_bytes)
+}
+
+#[wasm_bindgen]
+pub fn reverse_js(input_wav: &[u8]) -> Result<js_sys::Uint8Array, JsValue> {
+    match reverse(input_wav.to_vec()) {
+        Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
+        Err(e) => Err(JsValue::from_str(&e)),
+    }
 }

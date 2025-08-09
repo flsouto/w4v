@@ -2,19 +2,36 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Rust WAV Reverse (WASM)</title>
+  <title>Rust WAV Effects (WASM)</title>
 </head>
 <body>
-  <h1>Reverse WAV in Rust + WebAssembly</h1>
+  <h1>WAV Effects in Rust + WebAssembly</h1>
   <input type="file" id="file" accept=".wav" />
+  <button id="reverbBtn">Reverb</button>
   <button id="reverseBtn">Reverse</button>
   <br><br>
   <audio id="player" controls></audio>
 
   <script type="module">
-    import init, { reverb } from "./pkg/wasm_example.js?t=2wrer";
+    import init, { reverb_js, reverse_js } from "./pkg/wasm_example.js";
 
     await init();
+
+    document.getElementById("reverbBtn").addEventListener("click", async () => {
+      const fileInput = document.getElementById("file");
+      if (!fileInput.files.length) return alert("Choose a WAV first!");
+
+      const arrayBuffer = await fileInput.files[0].arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+        try {
+          const processed = reverb_js(uint8Array, 400, .5);
+          const blob = new Blob([processed], { type: "audio/wav" });
+          document.getElementById("player").src = URL.createObjectURL(blob);
+        } catch (e) {
+          alert("Error: " + e);
+        }
+    });
 
     document.getElementById("reverseBtn").addEventListener("click", async () => {
       const fileInput = document.getElementById("file");
@@ -24,13 +41,12 @@
       const uint8Array = new Uint8Array(arrayBuffer);
 
         try {
-          const reversed = reverb(uint8Array, 20, .8);
-          const blob = new Blob([reversed], { type: "audio/wav" });
+          const processed = reverse_js(uint8Array);
+          const blob = new Blob([processed], { type: "audio/wav" });
           document.getElementById("player").src = URL.createObjectURL(blob);
         } catch (e) {
           alert("Error: " + e);
         }
-
     });
   </script>
 </body>
