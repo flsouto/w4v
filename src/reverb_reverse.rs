@@ -29,10 +29,10 @@ pub struct ReverbReverseArgs {
     pub output: String,
 
     /// Delay in milliseconds
-    #[arg(long, default_value_t = 400)]
+    #[arg()]
     pub delay: u32,
 
     /// Decay factor
-    #[arg(long, default_value_t = 0.5)]
+    #[arg()]
     pub decay: f32,
 }
