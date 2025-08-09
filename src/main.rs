@@ -4,6 +4,8 @@ use wasm_example::reverb::{reverb, ReverbArgs};
 use wasm_example::reverse::{reverse, ReverseArgs};
 use wasm_example::reverb_reverse::{reverb_reverse, ReverbReverseArgs};
 use wasm_example::speed::{speed, SpeedArgs};
+use wasm_example::len::{len, LenArgs};
+use wasm_example::resize::{resize, ResizeArgs};
 
 #[derive(Parser)]
 #[command(name = "wav-effects")]
@@ -21,6 +23,8 @@ enum Commands {
     Reverse(ReverseArgs),
     ReverbReverse(ReverbReverseArgs),
     Speed(SpeedArgs),
+    Len(LenArgs),
+    Resize(ResizeArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -52,6 +56,19 @@ fn main() -> Result<(), String> {
             println!("Changing speed of {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = speed(input_wav, args.factor)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Len(args) => {
+            println!("Calculating length of {}...", args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let duration = len(input_wav)?;
+            println!("Duration: {:.2} seconds", duration);
+        }
+        Commands::Resize(args) => {
+            println!("Resizing {}...", args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = resize(input_wav, args.new_duration)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }

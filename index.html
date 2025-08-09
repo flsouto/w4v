@@ -12,11 +12,14 @@
   <button id="reverbReverseBtn">Reverb then Reverse</button>
   <button id="speedBtn">Speed Up (1.5x)</button>
   <button id="slowBtn">Slow Down (0.75x)</button>
+  <button id="lenBtn">Get Duration</button>
+  <button id="resizeBtn">Resize to 5s</button>
   <br><br>
   <audio id="player" controls></audio>
+  <p id="duration"></p>
 
   <script type="module">
-    import init, { reverb_js, reverse_js, reverb_reverse_js, speed_js } from "./pkg/wasm_example.js";
+    import init, { reverb_js, reverse_js, reverb_reverse_js, speed_js, len_js, resize_js } from "./pkg/wasm_example.js";
 
     await init();
 
@@ -93,6 +96,37 @@
 
         try {
           const processed = speed_js(uint8Array, 0.75);
+          const blob = new Blob([processed], { type: "audio/wav" });
+          document.getElementById("player").src = URL.createObjectURL(blob);
+        } catch (e) {
+          alert("Error: " + e);
+        }
+    });
+
+    document.getElementById("lenBtn").addEventListener("click", async () => {
+      const fileInput = document.getElementById("file");
+      if (!fileInput.files.length) return alert("Choose a WAV first!");
+
+      const arrayBuffer = await fileInput.files[0].arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+        try {
+          const duration = len_js(uint8Array);
+          document.getElementById("duration").textContent = `Duration: ${duration.toFixed(2)} seconds`;
+        } catch (e) {
+          alert("Error: " + e);
+        }
+    });
+
+    document.getElementById("resizeBtn").addEventListener("click", async () => {
+      const fileInput = document.getElementById("file");
+      if (!fileInput.files.length) return alert("Choose a WAV first!");
+
+      const arrayBuffer = await fileInput.files[0].arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+        try {
+          const processed = resize_js(uint8Array, 5);
           const blob = new Blob([processed], { type: "audio/wav" });
           document.getElementById("player").src = URL.createObjectURL(blob);
         } catch (e) {
