@@ -6,6 +6,7 @@ use w4v::reverb_reverse::{reverb_reverse, ReverbReverseArgs};
 use w4v::speed::{speed, SpeedArgs};
 use w4v::len::{len, LenArgs};
 use w4v::resize::{resize, ResizeArgs};
+use w4v::flanger::{flanger, FlangerArgs};
 
 #[derive(Parser)]
 #[command(name = "wav-effects")]
@@ -25,6 +26,7 @@ enum Commands {
     Speed(SpeedArgs),
     Len(LenArgs),
     Resize(ResizeArgs),
+    Flanger(FlangerArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -69,6 +71,13 @@ fn main() -> Result<(), String> {
             println!("Resizing {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = resize(input_wav, args.new_duration)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Flanger(args) => {
+            println!("Applying flanger to {}...", args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = flanger(input_wav, args.delay, args.depth, args.rate, args.feedback)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
