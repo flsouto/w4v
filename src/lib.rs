@@ -4,6 +4,7 @@ pub mod reverb_reverse;
 pub mod speed;
 pub mod len;
 pub mod resize;
+pub mod utils;
 
 pub use reverb::reverb_js;
 pub use reverse::reverse_js;

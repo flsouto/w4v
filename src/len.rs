@@ -19,6 +19,8 @@ pub fn len(input_wav: Vec<u8>) -> Result<f32, String> {
     Ok(duration as f32 / sample_rate as f32)
 }
 
+
+
 #[wasm_bindgen]
 pub fn len_js(input_wav: &[u8]) -> Result<f32, JsValue> {
     match len(input_wav.to_vec()) {
