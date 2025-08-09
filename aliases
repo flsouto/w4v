@@ -1,3 +1,7 @@
 alias 2web='wasm-pack build --target web'
 alias w4v='cargo run -- '
 alias serv='python3 -m http.server '
+
+dum() {
+    w4v $1 tests/data/dummy.wav out.wav $2 $3 $4; play out.wav;
+}
