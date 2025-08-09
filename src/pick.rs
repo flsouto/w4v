@@ -1,0 +1,71 @@
+use wasm_bindgen::prelude::*;
+use clap::Parser;
+use crate::len::len;
+use crate::time::resolve_time;
+use crate::cut::cut;
+use rand::Rng;
+
+pub fn pick(
+    input_wav_bytes: Vec<u8>,
+    duration_arg: &str,
+) -> Result<Vec<u8>, String> {
+    let total_wav_duration = len(input_wav_bytes.clone())?;
+    let duration_seconds = resolve_time(duration_arg, total_wav_duration)?;
+
+    if duration_seconds > total_wav_duration {
+        return Err("Duration cannot be greater than the total duration of the WAV file.".to_string());
+    }
+
+    let max_start_offset = total_wav_duration - duration_seconds;
+    let start_offset = rand::thread_rng().gen_range(0.0..=max_start_offset);
+
+    cut(input_wav_bytes, &start_offset.to_string(), &duration_seconds.to_string())
+}
+
+#[wasm_bindgen]
+pub fn pick_js(
+    input_wav: &[u8],
+    duration: &str,
+) -> Result<js_sys::Uint8Array, JsValue> {
+    match pick(input_wav.to_vec(), duration) {
+        Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
+        Err(e) => Err(JsValue::from_str(&e)),
+    }
+}
+
+#[derive(Parser, Debug)]
+#[command(about = "Picks a random segment from a WAV file", long_about = None)]
+pub struct PickArgs {
+    /// Input WAV file
+    #[arg()]
+    pub input: String,
+
+    /// Output WAV file
+    #[arg()]
+    pub output: String,
+
+    /// Duration of the segment to pick in seconds (can be absolute or fraction like "1/2")
+    #[arg()]
+    pub duration: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use crate::len::len;
+
+    #[test]
+    fn test_pick_effect() {
+        let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
+        let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
+        let original_duration = len(input_wav.clone()).expect("Failed to get original duration");
+
+        let duration = (original_duration / 2.0).to_string();
+        let output_wav = pick(input_wav.clone(), &duration).expect("Pick function failed");
+        let processed_duration = len(output_wav.clone()).expect("Failed to get processed duration");
+
+        assert!((processed_duration - (original_duration / 2.0)).abs() < 0.01, "Picked duration should be accurate");
+        assert_ne!(input_wav, output_wav, "Pick should modify the audio content");
+    }
+}

@@ -8,6 +8,7 @@ use w4v::len::{len, LenArgs};
 use w4v::resize::{resize, ResizeArgs};
 use w4v::flanger::{flanger, FlangerArgs};
 use w4v::cut::{cut, CutArgs};
+use w4v::pick::{pick, PickArgs};
 
 
 #[derive(Parser)]
@@ -30,6 +31,7 @@ enum Commands {
     Resize(ResizeArgs),
     Flanger(FlangerArgs),
     Cut(CutArgs),
+    Pick(PickArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -88,6 +90,13 @@ fn main() -> Result<(), String> {
             println!("Cutting {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = cut(input_wav, &args.start_offset, &args.duration)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Pick(args) => {
+            println!("Picking a random segment from {}...", args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = pick(input_wav, &args.duration)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }

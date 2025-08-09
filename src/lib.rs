@@ -8,6 +8,7 @@ pub mod resize;
 pub mod utils;
 pub mod flanger;
 pub mod cut;
+pub mod pick;
 
 pub use reverb::reverb_js;
 pub use reverse::reverse_js;
@@ -17,3 +18,4 @@ pub use len::len_js;
 pub use resize::resize_js;
 pub use flanger::flanger_js;
 pub use cut::cut_js;
+pub use pick::pick_js;
