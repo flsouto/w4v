@@ -1,9 +1,7 @@
 use wasm_bindgen::prelude::*;
-use hound::{SampleFormat};
-use std::io::Cursor;
 use js_sys;
 use clap::Parser;
-use crate::utils::{get_samples};
+use crate::utils::{get_samples, wrap_samples};
 use crate::time::{resolve_time};
 use crate::len::len;
 
@@ -43,27 +41,7 @@ pub fn cut(
 
     let cut_samples = samples[start_sample_index..actual_end_sample_index].to_vec();
 
-    // Write output as 16-bit PCM
-    let mut out_bytes: Vec<u8> = Vec::new();
-    {
-        let out_cursor = Cursor::new(&mut out_bytes);
-        let mut writer = hound::WavWriter::new(out_cursor, hound::WavSpec {
-            channels: spec.channels,
-            sample_rate: spec.sample_rate,
-            bits_per_sample: 16,
-            sample_format: SampleFormat::Int,
-        }).map_err(|e| format!("Write error: {}", e))?;
-
-        for sample in cut_samples {
-            let val = (sample * i16::MAX as f32) as i16;
-            writer.write_sample(val)
-                .map_err(|e| format!("Write sample error: {}", e))?;
-        }
-        writer.finalize()
-            .map_err(|e| format!("Finalize error: {}", e))?;
-    }
-
-    Ok(out_bytes)
+    wrap_samples(cut_samples, spec)
 }
 
 #[wasm_bindgen]
@@ -101,14 +79,12 @@ pub struct CutArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use crate::len::len;
+    use crate::utils::get_dummy;
 
     #[test]
     fn test_cut_effect() {
-        let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
-        let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
-
+        let input_wav = get_dummy();
         let original_duration = len(input_wav.clone()).expect("Failed to get original duration");
 
         // Test cutting a segment from the middle with absolute values
@@ -132,8 +108,7 @@ mod tests {
 
     #[test]
     fn test_cut_channel_alignment() {
-        let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
-        let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
+        let input_wav = get_dummy(); 
 
         // Choose a duration that is unlikely to be a perfect multiple of channels
         // For a stereo WAV (2 channels), a duration that results in an odd number of samples

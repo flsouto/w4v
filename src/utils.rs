@@ -1,12 +1,13 @@
 use hound::{WavReader, SampleFormat, WavSpec};
 use std::io::Cursor;
+use std::fs;
 
 pub fn get_samples(input_wav: Vec<u8>) -> Result<(Vec<f32>, WavSpec), String> {
     let cursor = Cursor::new(input_wav);
     let reader = WavReader::new(cursor)
         .map_err(|e| format!("Invalid WAV: {}", e))?;
 
-    let spec = reader.spec();
+    let mut spec = reader.spec();
 
     let samples: Vec<f32> = match (spec.bits_per_sample, spec.sample_format) {
         (16, SampleFormat::Int) => reader.into_samples::<i16>()
@@ -23,10 +24,35 @@ pub fn get_samples(input_wav: Vec<u8>) -> Result<(Vec<f32>, WavSpec), String> {
             .collect(),
         _ => return Err("Unsupported WAV format".to_string()),
     };
+
+    spec.sample_format = SampleFormat::Float;
+    spec.bits_per_sample = 32;
+
     Ok((samples, spec))
 }
 
+// Recreates the WAV out of a samples vector + spec object
+pub fn wrap_samples(samples: Vec<f32>, spec: WavSpec) -> Result<Vec<u8>, String>{
+    let mut out_bytes: Vec<u8> = Vec::new();
+    let out_cursor = Cursor::new(&mut out_bytes);
+    let mut writer = hound::WavWriter::new(out_cursor, spec)
+        .map_err(|e| format!("Write error: {}", e))?;
 
+    for sample in samples {
+        writer.write_sample(sample)
+            .map_err(|e| format!("Write sample error: {}", e))?;
+    }
+    writer.finalize()
+        .map_err(|e| format!("Finalize error: {}", e))?;
+
+    Ok(out_bytes)
+
+}
+
+pub fn get_dummy() -> Vec<u8> {
+    let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
+    fs::read(dummy_wav_path).expect("Failed to read dummy.wav")
+}
 
 #[cfg(test)]
 mod tests {

@@ -52,13 +52,12 @@ pub struct PickArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use crate::len::len;
+    use crate::utils::get_dummy;
 
     #[test]
     fn test_pick_effect() {
-        let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
-        let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
+        let input_wav = get_dummy();
         let original_duration = len(input_wav.clone()).expect("Failed to get original duration");
 
         let duration = (original_duration / 2.0).to_string();
