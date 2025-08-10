@@ -11,6 +11,7 @@ pub mod cut;
 pub mod pick;
 pub mod fade;
 pub mod highpass;
+pub mod lowpass;
 
 pub use reverb::reverb_js;
 pub use reverse::reverse_js;
@@ -23,3 +24,4 @@ pub use cut::cut_js;
 pub use pick::pick_js;
 pub use fade::fade_js;
 pub use highpass::highpass_js;
+pub use lowpass::lowpass_js;

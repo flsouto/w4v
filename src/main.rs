@@ -11,6 +11,7 @@ use w4v::cut::{cut, CutArgs};
 use w4v::pick::{pick, PickArgs};
 use w4v::fade::{fade, FadeArgs};
 use w4v::highpass::{highpass, HighpassArgs};
+use w4v::lowpass::{lowpass, LowpassArgs};
 
 
 #[derive(Parser)]
@@ -36,6 +37,7 @@ enum Commands {
     Pick(PickArgs),
     Fade(FadeArgs),
     Highpass(HighpassArgs),
+    Lowpass(LowpassArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -115,6 +117,13 @@ fn main() -> Result<(), String> {
             println!("Applying highpass filter to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = highpass(input_wav, args.cutoff_frequency)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Lowpass(args) => {
+            println!("Applying lowpass filter to {}...", args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = lowpass(input_wav, args.cutoff_frequency)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
