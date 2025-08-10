@@ -49,6 +49,12 @@ pub fn wrap_samples(samples: Vec<f32>, spec: WavSpec) -> Result<Vec<u8>, String>
 
 }
 
+pub fn clamp_samples(samples: &mut Vec<f32>) {
+    for sample in samples.iter_mut() {
+        *sample = sample.max(-1.0).min(1.0);
+    }
+}
+
 pub fn get_dummy() -> Vec<u8> {
     let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
     fs::read(dummy_wav_path).expect("Failed to read dummy.wav")

@@ -9,6 +9,7 @@ use w4v::resize::{resize, ResizeArgs};
 use w4v::flanger::{flanger, FlangerArgs};
 use w4v::cut::{cut, CutArgs};
 use w4v::pick::{pick, PickArgs};
+use w4v::fade::{fade, FadeArgs};
 
 
 #[derive(Parser)]
@@ -32,6 +33,7 @@ enum Commands {
     Flanger(FlangerArgs),
     Cut(CutArgs),
     Pick(PickArgs),
+    Fade(FadeArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -97,6 +99,13 @@ fn main() -> Result<(), String> {
             println!("Picking a random segment from {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = pick(input_wav, &args.duration)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Fade(args) => {
+            println!("Applying fade to {}...", args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = fade(input_wav, args.initial_volume, args.end_volume)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
