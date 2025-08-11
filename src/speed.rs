@@ -1,9 +1,7 @@
 use wasm_bindgen::prelude::*;
-use hound::{SampleFormat};
-use std::io::Cursor;
 use js_sys;
 use clap::Parser;
-use crate::utils::get_samples;
+use crate::utils::{get_samples,wrap_samples};
 
 pub fn speed(input_wav: Vec<u8>, factor: f32) -> Result<Vec<u8>, String> {
     if factor <= 0.0 {
@@ -35,27 +33,7 @@ pub fn speed(input_wav: Vec<u8>, factor: f32) -> Result<Vec<u8>, String> {
         }
     }
 
-    // Write output as 16-bit PCM
-    let mut out_bytes: Vec<u8> = Vec::new();
-    {
-        let out_cursor = Cursor::new(&mut out_bytes);
-        let mut writer = hound::WavWriter::new(out_cursor, hound::WavSpec {
-            channels: spec.channels,
-            sample_rate: spec.sample_rate,
-            bits_per_sample: 16,
-            sample_format: SampleFormat::Int,
-        }).map_err(|e| format!("Write error: {}", e))?;
-
-        for sample in output_samples {
-            let val = (sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
-            writer.write_sample(val)
-                .map_err(|e| format!("Write sample error: {}", e))?;
-        }
-        writer.finalize()
-            .map_err(|e| format!("Finalize error: {}", e))?;
-    }
-
-    Ok(out_bytes)
+    wrap_samples(output_samples,spec)
 }
 
 
