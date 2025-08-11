@@ -18,6 +18,7 @@ use w4v::pick::{pick, PickArgs};
 use w4v::fade::{fade, FadeArgs};
 use w4v::highpass::{highpass, HighpassArgs};
 use w4v::lowpass::{lowpass, LowpassArgs};
+use w4v::remix::{remix, RemixArgs};
 
 
 #[derive(Parser)]
@@ -51,6 +52,7 @@ enum Commands {
     Gain(GainArgs),
     #[command(name = "maxgain")]
     MaxGain(MaxGainArgs),
+    Remix(RemixArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -181,6 +183,13 @@ fn main() -> Result<(), String> {
             println!("Applying max non-clipping gain to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = maxgain(input_wav)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Remix(args) => {
+            println!("Remixing {} with pattern '{}'...", args.input, args.pattern);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = remix(input_wav, &args.pattern)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }

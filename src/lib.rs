@@ -18,6 +18,8 @@ pub mod chop;
 pub mod overdrive;
 pub mod gain;
 pub mod maxgain;
+pub mod split;
+pub mod remix;
 
 pub use reverb::reverb_js;
 pub use reverse::reverse_js;
@@ -37,3 +39,4 @@ pub use chop::chop_js;
 pub use overdrive::overdrive_js;
 pub use gain::gain_js;
 pub use maxgain::maxgain_js;
+pub use remix::remix_js;
