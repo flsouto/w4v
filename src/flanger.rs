@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use js_sys;
 use clap::Parser;
-use crate::utils::{get_samples,wrap_samples};
+use crate::utils::{get_samples,wrap_samples, clamp_samples};
 
 pub fn flanger(
     input_wav: Vec<u8>,
@@ -59,11 +59,12 @@ pub fn flanger(
         // Advance write pointer (circular)
         write_pointer = (write_pointer + 1) % max_delay_samples;
 
-        output_samples.push(flanged_sample.clamp(-1.0, 1.0));
+        output_samples.push(flanged_sample);
 
         lfo_phase += lfo_increment;
     }
 
+    clamp_samples(&mut output_samples); // Add soft clipping here
     wrap_samples(output_samples, spec)
 }
 

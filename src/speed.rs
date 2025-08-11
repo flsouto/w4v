@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use js_sys;
 use clap::Parser;
-use crate::utils::{get_samples,wrap_samples};
+use crate::utils::{get_samples,wrap_samples, clamp_samples};
 
 pub fn speed(input_wav: Vec<u8>, factor: f32) -> Result<Vec<u8>, String> {
     if factor <= 0.0 {
@@ -33,6 +33,7 @@ pub fn speed(input_wav: Vec<u8>, factor: f32) -> Result<Vec<u8>, String> {
         }
     }
 
+    clamp_samples(&mut output_samples);
     wrap_samples(output_samples,spec)
 }
 
