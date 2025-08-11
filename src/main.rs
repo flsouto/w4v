@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::fs;
 use w4v::reverb::{reverb, ReverbArgs};
+use w4v::overdrive::{overdrive, OverdriveArgs};
 use w4v::chop::{chop, ChopArgs};
 use w4v::add::{add, AddArgs};
 use w4v::x::{x, XArgs};
@@ -44,6 +45,7 @@ enum Commands {
     X(XArgs),
     Add(AddArgs),
     Chop(ChopArgs),
+    Overdrive(OverdriveArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -153,6 +155,13 @@ fn main() -> Result<(), String> {
             println!("Applying chop effect to {} with n={}", args.input, args.n);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = chop(input_wav, args.n)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Overdrive(args) => {
+            println!("Applying overdrive to {}...", args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = overdrive(input_wav, args.gain, args.output_gain)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
