@@ -60,11 +60,12 @@ mod tests {
     use super::*;
     use crate::utils::get_dummy;
     use crate::len::len;
+    use crate::reverse::reverse;
 
     #[test]
     fn test_add_duration() {
         let input_wav_bytes1 = get_dummy();
-        let input_wav_bytes2 = get_dummy();
+        let input_wav_bytes2 = reverse(get_dummy()).unwrap();
 
         let output_wav_bytes = add(input_wav_bytes1.clone(), input_wav_bytes2.clone())
             .expect("add function failed");
