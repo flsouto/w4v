@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::fs;
 use w4v::reverb::{reverb, ReverbArgs};
+use w4v::bitcrush::{bitcrush, BitcrushArgs};
 use w4v::reverse::{reverse, ReverseArgs};
 use w4v::speed::{speed, SpeedArgs};
 use w4v::len::{len, LenArgs};
@@ -36,6 +37,7 @@ enum Commands {
     Fade(FadeArgs),
     Highpass(HighpassArgs),
     Lowpass(LowpassArgs),
+    Bitcrush(BitcrushArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -115,6 +117,14 @@ fn main() -> Result<(), String> {
             println!("Applying lowpass filter to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = lowpass(input_wav, args.cutoff_frequency)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Bitcrush(args) => {
+            println!("Applying bitcrush effect to {}...", args.input);
+            println!("Received semitones value: {}", args.semitones); // Still semitones for now, but it's the bitcrush parameter
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = bitcrush(input_wav, args.semitones)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
