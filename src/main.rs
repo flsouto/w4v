@@ -1,6 +1,8 @@
 use clap::Parser;
 use std::fs;
 use w4v::reverb::{reverb, ReverbArgs};
+use w4v::add::{add, AddArgs};
+use w4v::x::{x, XArgs};
 use w4v::bitcrush::{bitcrush, BitcrushArgs};
 use w4v::reverse::{reverse, ReverseArgs};
 use w4v::speed::{speed, SpeedArgs};
@@ -38,6 +40,8 @@ enum Commands {
     Highpass(HighpassArgs),
     Lowpass(LowpassArgs),
     Bitcrush(BitcrushArgs),
+    X(XArgs),
+    Add(AddArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -125,6 +129,21 @@ fn main() -> Result<(), String> {
             println!("Received semitones value: {}", args.semitones); // Still semitones for now, but it's the bitcrush parameter
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = bitcrush(input_wav, args.semitones)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::X(args) => {
+            println!("Repeating audio {} times for {}...", args.count, args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = x(input_wav, args.count)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Add(args) => {
+            println!("Concatenating {} and {}...", args.input1, args.input2);
+            let input_wav1 = fs::read(&args.input1).map_err(|e| format!("Failed to read first input file: {}", e))?;
+            let input_wav2 = fs::read(&args.input2).map_err(|e| format!("Failed to read second input file: {}", e))?;
+            let output_wav = add(input_wav1, input_wav2)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }

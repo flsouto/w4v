@@ -106,11 +106,11 @@ mod tests {
         let input_wav_bytes = get_dummy();
         let semitones = 2.0; // Example shift in semitones
 
-        let output_wav_bytes = bitcrush(input_wav.clone(), semitones)
+        let output_wav_bytes = bitcrush(input_wav_bytes.clone(), semitones)
             .expect("bitcrush function failed");
 
         // Check that the output has the same duration using the len function
-        let input_duration = len(input_wav.clone()).expect("Failed to get input duration");
+        let input_duration = len(input_wav_bytes.clone()).expect("Failed to get input duration");
         let output_duration = len(output_wav_bytes.clone()).expect("Failed to get output duration");
         assert_eq!(input_duration, output_duration, "Output WAV duration should be the same as input WAV duration");
 
