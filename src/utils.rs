@@ -50,8 +50,12 @@ pub fn wrap_samples(samples: Vec<f32>, spec: WavSpec) -> Result<Vec<u8>, String>
 }
 
 pub fn clamp_samples(samples: &mut Vec<f32>) {
+    // Implement soft clipping using tanh
+    // A gain of 1.0 means no additional amplification before tanh,
+    // effectively mapping values smoothly to the -1.0 to 1.0 range.
+    let soft_clip_gain = 1.0; // Default gain for soft clipping
     for sample in samples.iter_mut() {
-        *sample = sample.max(-1.0).min(1.0);
+        *sample = (*sample * soft_clip_gain).tanh();
     }
 }
 

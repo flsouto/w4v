@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use js_sys;
 use clap::Parser;
-use crate::utils::{get_samples, wrap_samples};
+use crate::utils::{get_samples, wrap_samples, clamp_samples};
 
 pub fn reverb(input_wav: Vec<u8>, delay_ms: u32, decay: f32) -> Result<Vec<u8>, String> {
 
@@ -24,12 +24,10 @@ pub fn reverb(input_wav: Vec<u8>, delay_ms: u32, decay: f32) -> Result<Vec<u8>, 
             let idx = i * channels + ch;
             let delayed_idx = (i - delay_samples) * channels + ch;
             output[idx] += decay * output[delayed_idx];
-            // Clamp to [-1.0, 1.0]
-            if output[idx] > 1.0 { output[idx] = 1.0; }
-            else if output[idx] < -1.0 { output[idx] = -1.0; }
         }
     }
 
+    clamp_samples(&mut output); // Add soft clipping here
     wrap_samples(output, spec)
 
 }
