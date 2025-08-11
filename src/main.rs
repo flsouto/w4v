@@ -2,7 +2,6 @@ use clap::Parser;
 use std::fs;
 use w4v::reverb::{reverb, ReverbArgs};
 use w4v::reverse::{reverse, ReverseArgs};
-use w4v::reverb_reverse::{reverb_reverse, ReverbReverseArgs};
 use w4v::speed::{speed, SpeedArgs};
 use w4v::len::{len, LenArgs};
 use w4v::resize::{resize, ResizeArgs};
@@ -28,7 +27,6 @@ struct Cli {
 enum Commands {
     Reverb(ReverbArgs),
     Reverse(ReverseArgs),
-    ReverbReverse(ReverbReverseArgs),
     Speed(SpeedArgs),
     Len(LenArgs),
     Resize(ResizeArgs),
@@ -55,13 +53,6 @@ fn main() -> Result<(), String> {
             println!("Reversing {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = reverse(input_wav)?;
-            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
-            println!("Saved to {}", args.output);
-        }
-        Commands::ReverbReverse(args) => {
-            println!("Applying reverb and reverse to {}...", args.input);
-            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = reverb_reverse(input_wav, args.delay, args.decay)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
