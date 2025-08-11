@@ -14,6 +14,7 @@ pub mod lowpass;
 pub mod bitcrush;
 pub mod x;
 pub mod add;
+pub mod chop;
 
 pub use reverb::reverb_js;
 pub use reverse::reverse_js;
@@ -29,3 +30,4 @@ pub use lowpass::lowpass_js;
 pub use crate::bitcrush::bitcrush_js;
 pub use x::x_js;
 pub use add::add_js;
+pub use chop::chop_js;

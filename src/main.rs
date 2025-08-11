@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::fs;
 use w4v::reverb::{reverb, ReverbArgs};
+use w4v::chop::{chop, ChopArgs};
 use w4v::add::{add, AddArgs};
 use w4v::x::{x, XArgs};
 use w4v::bitcrush::{bitcrush, BitcrushArgs};
@@ -42,6 +43,7 @@ enum Commands {
     Bitcrush(BitcrushArgs),
     X(XArgs),
     Add(AddArgs),
+    Chop(ChopArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -144,6 +146,13 @@ fn main() -> Result<(), String> {
             let input_wav1 = fs::read(&args.input1).map_err(|e| format!("Failed to read first input file: {}", e))?;
             let input_wav2 = fs::read(&args.input2).map_err(|e| format!("Failed to read second input file: {}", e))?;
             let output_wav = add(input_wav1, input_wav2)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Chop(args) => {
+            println!("Applying chop effect to {} with n={}", args.input, args.n);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = chop(input_wav, args.n)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
