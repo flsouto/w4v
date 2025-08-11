@@ -49,6 +49,7 @@ enum Commands {
     Chop(ChopArgs),
     Overdrive(OverdriveArgs),
     Gain(GainArgs),
+    #[command(name = "maxgain")]
     MaxGain(MaxGainArgs),
 }
 
