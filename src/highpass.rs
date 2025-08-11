@@ -59,9 +59,7 @@ pub struct HighpassArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::{get_samples, wrap_samples};
     use crate::len::len;
-    use hound::{WavSpec, SampleFormat};
     use std::fs;
 
     #[test]

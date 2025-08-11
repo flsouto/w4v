@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::fs;
 use w4v::reverb::{reverb, ReverbArgs};
+use w4v::gain::{gain, GainArgs};
 use w4v::overdrive::{overdrive, OverdriveArgs};
 use w4v::chop::{chop, ChopArgs};
 use w4v::add::{add, AddArgs};
@@ -46,6 +47,7 @@ enum Commands {
     Add(AddArgs),
     Chop(ChopArgs),
     Overdrive(OverdriveArgs),
+    Gain(GainArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -162,6 +164,13 @@ fn main() -> Result<(), String> {
             println!("Applying overdrive to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
             let output_wav = overdrive(input_wav, args.gain, args.output_gain)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        }
+        Commands::Gain(args) => {
+            println!("Applying gain of {}dB to {}...", args.gain, args.input);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = gain(input_wav, args.gain)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }

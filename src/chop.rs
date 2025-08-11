@@ -1,6 +1,5 @@
 use wasm_bindgen::prelude::*;
 use clap::Parser;
-use crate::utils::{get_samples, wrap_samples};
 use crate::len::len;
 use crate::cut::cut;
 use crate::x::x;
