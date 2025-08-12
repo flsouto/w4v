@@ -1,5 +1,6 @@
 use clap::Parser;
 use std::fs;
+use rand::seq::SliceRandom;
 use w4v::reverb::{reverb, ReverbArgs};
 use w4v::maxgain::{maxgain, MaxGainArgs};
 use w4v::gain::{gain, GainArgs};
@@ -19,6 +20,8 @@ use w4v::fade::{fade, FadeArgs};
 use w4v::highpass::{highpass, HighpassArgs};
 use w4v::lowpass::{lowpass, LowpassArgs};
 use w4v::remix::{remix, RemixArgs};
+use w4v::mosaic::{mosaic, MosaicArgs};
+use w4v::blend::{blend, BlendArgs};
 
 
 #[derive(Parser)]
@@ -53,6 +56,8 @@ enum Commands {
     #[command(name = "maxgain")]
     MaxGain(MaxGainArgs),
     Remix(RemixArgs),
+    Mosaic(MosaicArgs),
+    Blend(BlendArgs)
 }
 
 fn main() -> Result<(), String> {
@@ -193,6 +198,40 @@ fn main() -> Result<(), String> {
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
+        Commands::Mosaic(args) => {
+            println!("Creating mosaic of {} with pattern '{}'...", args.input, args.pattern);
+            let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
+            let output_wav = mosaic(input_wav, &args.pattern, args.segment_len)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
+        },
+        Commands::Blend(args) => {
+            println!("Blending wavs in '{}' with '{}'...", args.input_folder, args.blender);
+
+            let mut rng = rand::thread_rng();
+            let entries = fs::read_dir(&args.input_folder)
+                .map_err(|e| format!("Failed to read input folder: {}", e))?
+                .filter_map(|entry| entry.ok())
+                .filter(|entry| entry.path().extension().map_or(false, |ext| ext == "wav"))
+                .collect::<Vec<_>>();
+
+            if entries.len() < 4 {
+                return Err("Input folder must contain at least 4 WAV files".to_string());
+            }
+
+            let mut samples = Vec::new();
+            for entry in entries.choose_multiple(&mut rng, 4) {
+                let wav_data = fs::read(entry.path()).map_err(|e| {
+                    format!("Failed to read WAV file '{}': {}", entry.path().display(), e)
+                })?;
+                samples.push(wav_data);
+            }
+
+            let output_wav = blend(samples, &args.blender)?;
+            fs::write(&args.output_path, output_wav)
+                .map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output_path);
+        }        
     }
 
     Ok(())
