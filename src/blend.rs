@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use clap::Parser;
 
 use crate::blenders::{mosaic};
+use crate::maxgain;
 
 type In = Vec<Vec<u8>>;
 type Out = Result<Vec<u8>, String>;
@@ -14,12 +15,15 @@ pub fn blend(wavs:In, blender:&str) -> Out{
     blenders.insert("mosaic", mosaic);
 
     if let Some(&func) = blenders.get(blender) {
-        return func(wavs);
-    } else if blender == "rand" {
+        return maxgain(func(wavs)?);
+    }
+
+    if blender == "rand" {
         let mut rng = thread_rng();
         let &func = blenders.values().choose(&mut rng).unwrap();
-        return func(wavs);
+        return maxgain(func(wavs)?);
     }    
+
     Err(format!("Invalid blender provided: {}", blender))
 }
 
