@@ -6,12 +6,12 @@ use clap::Parser;
 use crate::blenders::{mosaic,delayer};
 use crate::maxgain;
 
-type In = Vec<Vec<u8>>;
+type In<'a> = &'a [&'a [u8]];
 type Out = Result<Vec<u8>, String>;
 
-pub fn blend(wavs:In, blender:&str) -> Out{
+pub fn blend<'a>(wavs: In<'a>, blender: &str) -> Out{
     
-    let mut blenders : HashMap<&str, fn(In) -> Out> = HashMap::new();
+    let mut blenders : HashMap<&str, fn(In<'a>) -> Out> = HashMap::new();
     blenders.insert("mosaic", mosaic);
     blenders.insert("delayer", delayer);
 

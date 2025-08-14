@@ -2,12 +2,12 @@ use crate::{len, resize, mix, silence, add, cut, x};
 use rand::thread_rng;
 use rand::Rng;
 
-pub fn delayer(wavs:Vec<Vec<u8>>) -> Result<Vec<u8>,String> {
+pub fn delayer(wavs: &[&[u8]]) -> Result<Vec<u8>,String> {
 
     let mut rng = thread_rng();
 
-    let mut w0 = cut(&wavs[0],"0","1/4")?;
-    let mut w1 = cut(&wavs[1],"0","1/4")?;
+    let mut w0 = cut(wavs[0],"0","1/4")?;
+    let mut w1 = cut(wavs[1],"0","1/4")?;
     
     let len0 = len(&w0)?;
     let len1 = len(&w1)?;   

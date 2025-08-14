@@ -4,12 +4,12 @@ use rand::thread_rng;
 use rand::prelude::SliceRandom;
 use rand::Rng;
 
-pub fn mosaic(wavs:Vec<Vec<u8>>) -> Result<Vec<u8>, String>{
+pub fn mosaic(wavs: &[&[u8]]) -> Result<Vec<u8>, String>{
 
     let mut rng = thread_rng();
 
-    let mut w1 = pick( &wavs[0], "1/16")?;
-    let mut w2 = pick( &wavs[1], "1/16")?;
+    let mut w1 = pick( wavs[0], "1/16")?;
+    let mut w2 = pick( wavs[1], "1/16")?;
 
     if rng.gen_bool(0.5) {
         w1 = reverse(&w1)?;

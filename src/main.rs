@@ -229,7 +229,12 @@ fn main() -> Result<(), String> {
                 samples.push(wav_data);
             }
 
-            let output_wav = blend(samples, &args.blender)?;
+            let mut samples_refs = Vec::new();
+            for wav_data in &samples {
+                samples_refs.push(wav_data.as_slice());
+            }
+
+            let output_wav = blend(&samples_refs, &args.blender)?;
             fs::write(&args.output_path, output_wav)
                 .map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output_path);
