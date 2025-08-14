@@ -69,21 +69,21 @@ fn main() -> Result<(), String> {
         Commands::Reverb(args) => {
             println!("Applying reverb to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = reverb(input_wav, args.delay, args.decay)?;
+            let output_wav = reverb(&input_wav, args.delay, args.decay)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Reverse(args) => {
             println!("Reversing {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = reverse(input_wav)?;
+            let output_wav = reverse(&input_wav)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Speed(args) => {
             println!("Changing speed of {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = speed(input_wav, args.factor)?;
+            let output_wav = speed(&input_wav, args.factor)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
@@ -96,49 +96,49 @@ fn main() -> Result<(), String> {
         Commands::Resize(args) => {
             println!("Resizing {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = resize(input_wav, args.new_duration)?;
+            let output_wav = resize(&input_wav, args.new_duration)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Flanger(args) => {
             println!("Applying flanger to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = flanger(input_wav, args.delay, args.depth, args.rate, args.feedback)?;
+            let output_wav = flanger(&input_wav, args.delay, args.depth, args.rate, args.feedback)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Cut(args) => {
             println!("Cutting {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = cut(input_wav, &args.start_offset, &args.duration)?;
+            let output_wav = cut(&input_wav, &args.start_offset, &args.duration)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Pick(args) => {
             println!("Picking a random segment from {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = pick(input_wav, &args.duration)?;
+            let output_wav = pick(&input_wav, &args.duration)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Fade(args) => {
             println!("Applying fade to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = fade(input_wav, args.initial_volume, args.end_volume)?;
+            let output_wav = fade(&input_wav, args.initial_volume, args.end_volume)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Highpass(args) => {
             println!("Applying highpass filter to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = highpass(input_wav, args.cutoff_frequency)?;
+            let output_wav = highpass(&input_wav, args.cutoff_frequency)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Lowpass(args) => {
             println!("Applying lowpass filter to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = lowpass(input_wav, args.cutoff_frequency)?;
+            let output_wav = lowpass(&input_wav, args.cutoff_frequency)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
@@ -146,14 +146,14 @@ fn main() -> Result<(), String> {
             println!("Applying bitcrush effect to {}...", args.input);
             println!("Received semitones value: {}", args.semitones); // Still semitones for now, but it's the bitcrush parameter
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = bitcrush(input_wav, args.semitones)?;
+            let output_wav = bitcrush(&input_wav, args.semitones)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::X(args) => {
             println!("Repeating audio {} times for {}...", args.count, args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = x(input_wav, args.count)?;
+            let output_wav = x(&input_wav, args.count)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
@@ -161,49 +161,49 @@ fn main() -> Result<(), String> {
             println!("Concatenating {} and {}...", args.input1, args.input2);
             let input_wav1 = fs::read(&args.input1).map_err(|e| format!("Failed to read first input file: {}", e))?;
             let input_wav2 = fs::read(&args.input2).map_err(|e| format!("Failed to read second input file: {}", e))?;
-            let output_wav = add(input_wav1, input_wav2)?;
+            let output_wav = add(&input_wav1, &input_wav2)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Chop(args) => {
             println!("Applying chop effect to {} with n={}", args.input, args.n);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = chop(input_wav, args.n)?;
+            let output_wav = chop(&input_wav, args.n)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Overdrive(args) => {
             println!("Applying overdrive to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = overdrive(input_wav, args.gain, args.output_gain)?;
+            let output_wav = overdrive(&input_wav, args.gain, args.output_gain)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Gain(args) => {
             println!("Applying gain of {}dB to {}...", args.gain, args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = gain(input_wav, args.gain)?;
+            let output_wav = gain(&input_wav, args.gain)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::MaxGain(args) => {
             println!("Applying max non-clipping gain to {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = maxgain(input_wav)?;
+            let output_wav = maxgain(&input_wav)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Remix(args) => {
             println!("Remixing {} with pattern '{}'...", args.input, args.pattern);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = remix(input_wav, &args.pattern)?;
+            let output_wav = remix(&input_wav, &args.pattern)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }
         Commands::Mosaic(args) => {
             println!("Creating mosaic of {} with pattern '{}'...", args.input, args.pattern);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let output_wav = mosaic(input_wav, &args.pattern, args.segment_len)?;
+            let output_wav = mosaic(&input_wav, &args.pattern, args.segment_len)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         },
@@ -238,7 +238,7 @@ fn main() -> Result<(), String> {
             println!("Mixing {} and {}...", args.input1, args.input2);
             let input_wav1 = fs::read(&args.input1).map_err(|e| format!("Failed to read first input file: {}", e))?;
             let input_wav2 = fs::read(&args.input2).map_err(|e| format!("Failed to read second input file: {}", e))?;
-            let output_wav = mix(input_wav1, input_wav2, args.normalize)?;
+            let output_wav = mix(&input_wav1, &input_wav2, args.normalize)?;
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         }        

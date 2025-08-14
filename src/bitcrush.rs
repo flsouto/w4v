@@ -3,7 +3,7 @@ use js_sys;
 use clap::Parser;
 use crate::utils::{get_samples,wrap_samples, clamp_samples};
 
-pub fn bitcrush(input_wav: Vec<u8>, mut semitones: f32) -> Result<Vec<u8>, String> {
+pub fn bitcrush(input_wav: &[u8], mut semitones: f32) -> Result<Vec<u8>, String> {
 
     semitones += 24.0;
 
@@ -73,7 +73,7 @@ pub fn bitcrush_js(
     input_wav: &[u8],
     semitones: f32,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match bitcrush(input_wav.to_vec(), semitones) {
+    match bitcrush(input_wav, semitones) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -106,7 +106,7 @@ mod tests {
         let input_wav_bytes = get_dummy();
         let semitones = 2.0; // Example shift in semitones
 
-        let output_wav_bytes = bitcrush(input_wav_bytes.clone(), semitones)
+        let output_wav_bytes = bitcrush(&input_wav_bytes, semitones)
             .expect("bitcrush function failed");
 
         // Check that the output has the same duration using the len function

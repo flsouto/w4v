@@ -8,24 +8,24 @@ pub fn mosaic(wavs:Vec<Vec<u8>>) -> Result<Vec<u8>, String>{
 
     let mut rng = thread_rng();
 
-    let mut w1 = pick( wavs[0].clone(), "1/16")?;
-    let mut w2 = pick( wavs[1].clone(), "1/16")?;
+    let mut w1 = pick( &wavs[0], "1/16")?;
+    let mut w2 = pick( &wavs[1], "1/16")?;
 
     if rng.gen_bool(0.5) {
-        w1 = reverse(w1)?;
+        w1 = reverse(&w1)?;
     }
 
     if rng.gen_bool(0.5) {
-        w2 = reverse(w2)?;
+        w2 = reverse(&w2)?;
     }
 
     let pat = get_random_pattern();    
-    let mut o = mosaic_fx(add(w1,w2)?, &pat, rng.gen_range(0.1..=0.34))?;
+    let mut o = mosaic_fx(&add(&w1,&w2)?, &pat, rng.gen_range(0.1..=0.34))?;
 
     // todo randomize params
-    o = reverb(o, rng.gen_range(30..=180), rng.gen_range(0.3..=0.8))?;
+    o = reverb(&o, rng.gen_range(30..=180), rng.gen_range(0.3..=0.8))?;
 
-    x(o, 4)
+    x(&o, 4)
 
 }
 

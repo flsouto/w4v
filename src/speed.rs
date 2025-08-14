@@ -3,7 +3,7 @@ use js_sys;
 use clap::Parser;
 use crate::utils::{get_samples,wrap_samples, clamp_samples};
 
-pub fn speed(input_wav: Vec<u8>, factor: f32) -> Result<Vec<u8>, String> {
+pub fn speed(input_wav: &[u8], factor: f32) -> Result<Vec<u8>, String> {
     if factor <= 0.0 {
         return Err("Speed factor must be positive.".to_string());
     }
@@ -40,7 +40,7 @@ pub fn speed(input_wav: Vec<u8>, factor: f32) -> Result<Vec<u8>, String> {
 
 #[wasm_bindgen]
 pub fn speed_js(input_wav: &[u8], factor: f32) -> Result<js_sys::Uint8Array, JsValue> {
-    match speed(input_wav.to_vec(), factor) {
+    match speed(input_wav, factor) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -77,13 +77,13 @@ mod tests {
 
         // Test with factor < 1 (slower speed, longer duration)
         let factor_slower = 0.5;
-        let output_wav_slower = speed(input_wav.clone(), factor_slower).expect("Speed function failed for slower factor");
+        let output_wav_slower = speed(&input_wav, factor_slower).expect("Speed function failed for slower factor");
         let slower_duration = len(&output_wav_slower).expect("Failed to get slower duration");
         assert!(slower_duration > original_duration, "Slower speed should result in longer duration");
 
         // Test with factor > 1 (faster speed, shorter duration)
         let factor_faster = 2.0;
-        let output_wav_faster = speed(input_wav.clone(), factor_faster).expect("Speed function failed for faster factor");
+        let output_wav_faster = speed(&input_wav, factor_faster).expect("Speed function failed for faster factor");
         let faster_duration = len(&output_wav_faster).expect("Failed to get faster duration");
         assert!(faster_duration < original_duration, "Faster speed should result in shorter duration");
     }

@@ -26,11 +26,11 @@ pub struct MosaicArgs {
 }
 
 pub fn mosaic(
-    input_wav_bytes: Vec<u8>,
+    input_wav_bytes: &[u8],
     pattern: &str,
     segment_len: f32,
 ) -> Result<Vec<u8>, String> {
-    let (_samples, spec) = get_samples(input_wav_bytes.clone())?;
+    let (_samples, spec) = get_samples(input_wav_bytes)?;
     let mut segments: HashMap<char, Vec<u8>> = HashMap::new();
     let mut result_wav = wrap_samples(vec![], spec)?;
 
@@ -43,12 +43,12 @@ pub fn mosaic(
             silence.clone()
         } else {
             if !segments.contains_key(&c) {
-                let new_segment = pick(input_wav_bytes.clone(), &segment_len.to_string())?;
+                let new_segment = pick(input_wav_bytes, &segment_len.to_string())?;
                 segments.insert(c, new_segment);
             }
             segments.get(&c).unwrap().clone()
         };
-        result_wav = add(result_wav, segment_to_add)?;
+        result_wav = add(&result_wav, &segment_to_add)?;
     }
 
     Ok(result_wav)
@@ -60,7 +60,7 @@ pub fn mosaic_js(
     pattern: &str,
     segment_len: f32,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match mosaic(input_wav.to_vec(), pattern, segment_len) {
+    match mosaic(input_wav, pattern, segment_len) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -78,7 +78,7 @@ mod tests {
         let pattern = "ab_ab_ac_d_";
         let segment_len = 0.1;
 
-        let output_wav = mosaic(input_wav, pattern, segment_len).expect("mosaic function failed");
+        let output_wav = mosaic(&input_wav, pattern, segment_len).expect("mosaic function failed");
 
         let output_duration = len(&output_wav).expect("Failed to get output duration");
         let expected_duration = pattern.chars().count() as f32 * segment_len;

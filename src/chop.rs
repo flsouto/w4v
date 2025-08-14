@@ -4,19 +4,19 @@ use crate::len::len;
 use crate::cut::cut;
 use crate::x::x;
 
-pub fn chop(input_wav: Vec<u8>, n: u32) -> Result<Vec<u8>, String> {
+pub fn chop(input_wav: &[u8], n: u32) -> Result<Vec<u8>, String> {
     if n == 0 {
         return Err("n must be greater than 0.".to_string());
     }
 
-    let total_duration = len(&input_wav)?;
+    let total_duration = len(input_wav)?;
     let segment_duration = total_duration / n as f32;
 
     // Cut the first segment
-    let first_segment_wav = cut(input_wav.clone(), "0", &segment_duration.to_string())?;
+    let first_segment_wav = cut(input_wav, "0", &segment_duration.to_string())?;
 
     // Repeat the first segment n times
-    let output_wav = x(first_segment_wav, n)?;
+    let output_wav = x(&first_segment_wav, n)?;
 
     Ok(output_wav)
 }
@@ -26,7 +26,7 @@ pub fn chop_js(
     input_wav: &[u8],
     n: u32,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match chop(input_wav.to_vec(), n) {
+    match chop(input_wav, n) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -59,7 +59,7 @@ mod tests {
         let input_wav_bytes = get_dummy();
         let n = 3;
 
-        let output_wav_bytes = chop(input_wav_bytes.clone(), n)
+        let output_wav_bytes = chop(&input_wav_bytes, n)
             .expect("chop function failed");
 
         let input_duration = len(&input_wav_bytes).expect("Failed to get input duration");

@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 use clap::Parser;
 use crate::utils::{get_samples, wrap_samples};
 
-pub fn mix(input_wav1: Vec<u8>, input_wav2: Vec<u8>, normalize: bool) -> Result<Vec<u8>, String> {
+pub fn mix(input_wav1: &[u8], input_wav2: &[u8], normalize: bool) -> Result<Vec<u8>, String> {
     let (samples1, spec1) = get_samples(input_wav1)?;
     let (samples2, spec2) = get_samples(input_wav2)?;
 
@@ -53,7 +53,7 @@ pub fn mix_js(
     input_wav2: &[u8],
     normalize: bool,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match mix(input_wav1.to_vec(), input_wav2.to_vec(), normalize) {
+    match mix(input_wav1, input_wav2, normalize) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -89,10 +89,10 @@ mod tests {
         let input_wav_bytes1 = get_dummy();
         let input_wav_bytes2 = get_dummy();
 
-        let output_wav_bytes = mix(input_wav_bytes1.clone(), input_wav_bytes2.clone(), true)
+        let output_wav_bytes = mix(&input_wav_bytes1, &input_wav_bytes2, true)
             .expect("mix function failed");
 
-        let (samples, _) = get_samples(output_wav_bytes).unwrap();
+        let (samples, _) = get_samples(&output_wav_bytes).unwrap();
         let max_sample = samples.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
 
         assert!((max_sample - 1.0f32).abs() < 1e-6, "Normalization should result in a peak of 1.0");
@@ -127,10 +127,10 @@ mod tests {
             cursor.into_inner()
         };
 
-        let output_wav_bytes = mix(input_wav_bytes1.clone(), input_wav_bytes2.clone(), false)
+        let output_wav_bytes = mix(&input_wav_bytes1, &input_wav_bytes2, false)
             .expect("mix function failed");
 
-        let (samples, _) = get_samples(output_wav_bytes).unwrap();
+        let (samples, _) = get_samples(&output_wav_bytes).unwrap();
         assert_eq!(samples.len(), 2);
     }
 }

@@ -3,7 +3,7 @@ use js_sys;
 use clap::Parser;
 use crate::utils::{get_samples,wrap_samples};
 
-pub fn reverse(input_wav: Vec<u8>) -> Result<Vec<u8>, String> {
+pub fn reverse(input_wav: &[u8]) -> Result<Vec<u8>, String> {
 
     let (samples, spec) = get_samples(input_wav)?;
 
@@ -16,7 +16,7 @@ pub fn reverse(input_wav: Vec<u8>) -> Result<Vec<u8>, String> {
 
 #[wasm_bindgen]
 pub fn reverse_js(input_wav: &[u8]) -> Result<js_sys::Uint8Array, JsValue> {
-    match reverse(input_wav.to_vec()) {
+    match reverse(input_wav) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -47,7 +47,7 @@ mod tests {
 
         let original_duration = len(&input_wav).expect("Failed to get original duration");
 
-        let output_wav = reverse(input_wav.clone()).expect("Reverse function failed");
+        let output_wav = reverse(&input_wav).expect("Reverse function failed");
 
         let processed_duration = len(&output_wav).expect("Failed to get processed duration");
 

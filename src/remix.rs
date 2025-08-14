@@ -3,7 +3,7 @@ use clap::Parser;
 use crate::add::add;
 use crate::split::split;
 
-pub fn remix(input_wav: Vec<u8>, pattern: &str) -> Result<Vec<u8>, String> {
+pub fn remix(input_wav: &[u8], pattern: &str) -> Result<Vec<u8>, String> {
     let num_segments = pattern.chars().count();
     if num_segments == 0 {
         return Err("Pattern cannot be empty.".to_string());
@@ -33,7 +33,7 @@ pub fn remix(input_wav: Vec<u8>, pattern: &str) -> Result<Vec<u8>, String> {
     let mut output_wav = segments[pattern_indices[0] - 1].clone();
 
     for &index in pattern_indices.iter().skip(1) {
-        output_wav = add(output_wav, segments[index - 1].clone())?;
+        output_wav = add(&output_wav, &segments[index - 1])?;
     }
 
     Ok(output_wav)
@@ -44,7 +44,7 @@ pub fn remix_js(
     input_wav: &[u8],
     pattern: &str,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match remix(input_wav.to_vec(), pattern) {
+    match remix(input_wav, pattern) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -79,7 +79,7 @@ mod tests {
 
         let original_duration = len(&input_wav_bytes).unwrap();
 
-        let output_wav_bytes = remix(input_wav_bytes.clone(), pattern).expect("remix function failed");
+        let output_wav_bytes = remix(&input_wav_bytes, pattern).expect("remix function failed");
         let output_duration = len(&output_wav_bytes).unwrap();
 
         assert!((output_duration - original_duration).abs() < 0.01, "Output duration should be close to original duration");
@@ -94,7 +94,7 @@ mod tests {
         let original_duration = len(&input_wav_bytes).unwrap();
         let segment_duration = original_duration / num_segments as f32;
 
-        let output_wav_bytes = remix(input_wav_bytes.clone(), pattern).expect("remix function failed");
+        let output_wav_bytes = remix(&input_wav_bytes, pattern).expect("remix function failed");
         let output_duration = len(&output_wav_bytes).unwrap();
 
         assert!((output_duration - (segment_duration * 4.0)).abs() < 0.1, "Output duration should be 4 times a segment duration");
@@ -104,7 +104,7 @@ mod tests {
     fn test_remix_invalid_pattern_char() {
         let input_wav_bytes = get_dummy();
         let pattern = "1a23";
-        let result = remix(input_wav_bytes, pattern);
+        let result = remix(&input_wav_bytes, pattern);
         assert!(result.is_err(), "Should fail with invalid character in pattern");
     }
 
@@ -112,7 +112,7 @@ mod tests {
     fn test_remix_invalid_pattern_index_too_high() {
         let input_wav_bytes = get_dummy();
         let pattern = "125"; // 3 segments, but index 5 is invalid
-        let result = remix(input_wav_bytes, pattern);
+        let result = remix(&input_wav_bytes, pattern);
         assert!(result.is_err(), "Should fail with index out of bounds");
     }
 
@@ -120,7 +120,7 @@ mod tests {
     fn test_remix_invalid_pattern_index_zero() {
         let input_wav_bytes = get_dummy();
         let pattern = "120"; // 3 segments, but index 0 is invalid
-        let result = remix(input_wav_bytes, pattern);
+        let result = remix(&input_wav_bytes, pattern);
         assert!(result.is_err(), "Should fail with index 0");
     }
 
@@ -128,7 +128,7 @@ mod tests {
     fn test_remix_empty_pattern() {
         let input_wav_bytes = get_dummy();
         let pattern = "";
-        let result = remix(input_wav_bytes, pattern);
+        let result = remix(&input_wav_bytes, pattern);
         assert!(result.is_err(), "Should fail with empty pattern");
     }
 }

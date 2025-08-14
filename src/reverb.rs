@@ -3,7 +3,7 @@ use js_sys;
 use clap::Parser;
 use crate::utils::{get_samples, wrap_samples, clamp_samples};
 
-pub fn reverb(input_wav: Vec<u8>, delay_ms: u32, decay: f32) -> Result<Vec<u8>, String> {
+pub fn reverb(input_wav: &[u8], delay_ms: u32, decay: f32) -> Result<Vec<u8>, String> {
 
     let (samples, spec) = get_samples(input_wav)?;
 
@@ -34,7 +34,7 @@ pub fn reverb(input_wav: Vec<u8>, delay_ms: u32, decay: f32) -> Result<Vec<u8>, 
 
 #[wasm_bindgen]
 pub fn reverb_js(input_wav: &[u8], delay_ms: u32, decay: f32) -> Result<js_sys::Uint8Array, JsValue> {
-    match reverb(input_wav.to_vec(), delay_ms, decay) {
+    match reverb(input_wav, delay_ms, decay) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -76,7 +76,7 @@ mod tests {
         // Apply reverb with some parameters
         let delay_ms = 100;
         let decay = 0.5;
-        let output_wav = reverb(input_wav.clone(), delay_ms, decay).expect("Reverb function failed");
+        let output_wav = reverb(&input_wav, delay_ms, decay).expect("Reverb function failed");
 
         let processed_duration = len(&output_wav).expect("Failed to get processed duration");
 
@@ -95,15 +95,15 @@ mod tests {
         let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
         let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
 
-        let (original_samples, _) = crate::utils::get_samples(input_wav.clone()).expect("Failed to get original samples");
+        let (original_samples, _) = crate::utils::get_samples(&input_wav).expect("Failed to get original samples");
         let original_avg_abs_value: f32 = original_samples.iter().map(|s| s.abs()).sum::<f32>() / original_samples.len() as f32;
 
         // Apply reverb with some parameters
         let delay_ms = 100;
         let decay = 0.5;
-        let output_wav = reverb(input_wav.clone(), delay_ms, decay).expect("Reverb function failed");
+        let output_wav = reverb(&input_wav, delay_ms, decay).expect("Reverb function failed");
 
-        let (processed_samples, _) = crate::utils::get_samples(output_wav).expect("Failed to get processed samples");
+        let (processed_samples, _) = crate::utils::get_samples(&output_wav).expect("Failed to get processed samples");
         let processed_avg_abs_value: f32 = processed_samples.iter().map(|s| s.abs()).sum::<f32>() / processed_samples.len() as f32;
 
         // Assert that the average absolute sample value increases

@@ -16,13 +16,13 @@ pub fn blend(wavs:In, blender:&str) -> Out{
     blenders.insert("delayer", delayer);
 
     if let Some(&func) = blenders.get(blender) {
-        return maxgain(func(wavs)?);
+        return maxgain(&func(wavs)?);
     }
 
     if blender == "rand" {
         let mut rng = thread_rng();
         let &func = blenders.values().choose(&mut rng).unwrap();
-        return maxgain(func(wavs)?);
+        return maxgain(&func(wavs)?);
     }    
 
     Err(format!("Invalid blender provided: {}", blender))

@@ -7,7 +7,7 @@ fn db_to_amplitude(db: f32) -> f32 {
     10.0_f32.powf(db / 20.0)
 }
 
-pub fn gain(input_wav: Vec<u8>, gain_db: f32) -> Result<Vec<u8>, String> {
+pub fn gain(input_wav: &[u8], gain_db: f32) -> Result<Vec<u8>, String> {
     let (mut samples, spec) = get_samples(input_wav)?;
 
     let amplitude_multiplier = db_to_amplitude(gain_db);
@@ -25,7 +25,7 @@ pub fn gain_js(
     input_wav: &[u8],
     gain_db: f32,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match gain(input_wav.to_vec(), gain_db) {
+    match gain(input_wav, gain_db) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -58,7 +58,7 @@ mod tests {
         let input_wav_bytes = get_dummy();
         let gain_db = 6.0;
 
-        let output_wav_bytes = gain(input_wav_bytes.clone(), gain_db)
+        let output_wav_bytes = gain(&input_wav_bytes, gain_db)
             .expect("gain function failed");
 
         // Basic check: output should be different from input if gain is not 0dB

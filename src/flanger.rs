@@ -4,7 +4,7 @@ use clap::Parser;
 use crate::utils::{get_samples,wrap_samples, clamp_samples};
 
 pub fn flanger(
-    input_wav: Vec<u8>,
+    input_wav: &[u8],
     delay_ms: f32, // Base delay in milliseconds
     depth_ms: f32, // Depth of modulation in milliseconds
     rate_hz: f32,  // LFO rate in Hz
@@ -76,7 +76,7 @@ pub fn flanger_js(
     rate_hz: f32,
     feedback: f32,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match flanger(input_wav.to_vec(), delay_ms, depth_ms, rate_hz, feedback) {
+    match flanger(input_wav, delay_ms, depth_ms, rate_hz, feedback) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -128,7 +128,7 @@ mod tests {
         let depth_ms = 2.0;
         let rate_hz = 0.5;
         let feedback = 0.7;
-        let output_wav = flanger(input_wav.clone(), delay_ms, depth_ms, rate_hz, feedback).expect("Flanger function failed");
+        let output_wav = flanger(&input_wav, delay_ms, depth_ms, rate_hz, feedback).expect("Flanger function failed");
 
         let processed_duration = len(&output_wav).expect("Failed to get processed duration");
 

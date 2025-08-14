@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 use clap::Parser;
 use crate::utils::{get_samples, wrap_samples};
 
-pub fn maxgain(input_wav: Vec<u8>) -> Result<Vec<u8>, String> {
+pub fn maxgain(input_wav: &[u8]) -> Result<Vec<u8>, String> {
     let (mut samples, spec) = get_samples(input_wav)?;
 
     let mut max_abs_sample = 0.0f32;
@@ -32,7 +32,7 @@ pub fn maxgain(input_wav: Vec<u8>) -> Result<Vec<u8>, String> {
 pub fn maxgain_js(
     input_wav: &[u8],
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match maxgain(input_wav.to_vec()) {
+    match maxgain(input_wav) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -62,11 +62,11 @@ mod tests {
     fn test_maxgain_effect() {
         let input_wav_bytes = get_dummy();
 
-        let output_wav_bytes = maxgain(input_wav_bytes.clone())
+        let output_wav_bytes = maxgain(&input_wav_bytes)
             .expect("maxgain function failed");
 
         // Basic check: output should be different from input if not already at max volume
-        let (input_samples, _) = get_samples_util(input_wav_bytes.clone()).unwrap();
+        let (input_samples, _) = get_samples_util(&input_wav_bytes).unwrap();
         let max_input_abs: f32 = input_samples.iter().map(|s| s.abs()).fold(0.0, |max, val| max.max(val));
 
         if max_input_abs < 1.0 && max_input_abs > 0.0 {
@@ -79,7 +79,7 @@ mod tests {
         assert_eq!(input_duration, output_duration, "Maxgain should not change the duration");
 
         // Check that the maximum absolute sample in the output is close to 1.0 (if gain was applied)
-        let (output_samples, _) = get_samples_util(output_wav_bytes.clone()).unwrap();
+        let (output_samples, _) = get_samples_util(&output_wav_bytes).unwrap();
         let max_output_abs: f32 = output_samples.iter().map(|s| s.abs()).fold(0.0, |max, val| max.max(val));
 
         if max_input_abs < 1.0 && max_input_abs > 0.0 {
@@ -99,7 +99,7 @@ mod tests {
         let clipping_samples = vec![1.0f32; 44100]; // 1 second of max volume
         let clipping_wav = wrap_samples(clipping_samples, spec).expect("Failed to wrap clipping samples");
 
-        let output_wav_bytes = maxgain(clipping_wav.clone()).expect("maxgain failed for clipping audio");
+        let output_wav_bytes = maxgain(&clipping_wav).expect("maxgain failed for clipping audio");
 
         // Output should be identical to input if already clipping
         assert_eq!(clipping_wav, output_wav_bytes, "Output should be identical for already clipping audio");
@@ -117,7 +117,7 @@ mod tests {
         let silent_samples = vec![0.0f32; 44100]; // 1 second of silent audio
         let silent_wav = wrap_samples(silent_samples, spec).expect("Failed to wrap silent samples");
 
-        let output_wav_bytes = maxgain(silent_wav.clone()).expect("maxgain failed for silent audio");
+        let output_wav_bytes = maxgain(&silent_wav).expect("maxgain failed for silent audio");
 
         // Output should be identical to input for silent audio
         assert_eq!(silent_wav, output_wav_bytes, "Output should be identical for silent audio");

@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 use clap::Parser;
 use crate::utils::{get_samples, wrap_samples};
 
-pub fn add(input_wav1: Vec<u8>, input_wav2: Vec<u8>) -> Result<Vec<u8>, String> {
+pub fn add(input_wav1: &[u8], input_wav2: &[u8]) -> Result<Vec<u8>, String> {
     let (samples1, spec1) = get_samples(input_wav1)?;
     let (samples2, spec2) = get_samples(input_wav2)?;
 
@@ -32,7 +32,7 @@ pub fn add_js(
     input_wav1: &[u8],
     input_wav2: &[u8],
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match add(input_wav1.to_vec(), input_wav2.to_vec()) {
+    match add(input_wav1, input_wav2) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -65,9 +65,9 @@ mod tests {
     #[test]
     fn test_add_duration() {
         let input_wav_bytes1 = get_dummy();
-        let input_wav_bytes2 = reverse(get_dummy()).unwrap();
+        let input_wav_bytes2 = reverse(&get_dummy()).unwrap();
 
-        let output_wav_bytes = add(input_wav_bytes1.clone(), input_wav_bytes2.clone())
+        let output_wav_bytes = add(&input_wav_bytes1, &input_wav_bytes2)
             .expect("add function failed");
 
         let input_duration1 = len(&input_wav_bytes1).expect("Failed to get input1 duration");

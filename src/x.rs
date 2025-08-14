@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 use clap::Parser;
 use crate::utils::{get_samples, wrap_samples};
 
-pub fn x(input_wav: Vec<u8>, repeat_count: u32) -> Result<Vec<u8>, String> {
+pub fn x(input_wav: &[u8], repeat_count: u32) -> Result<Vec<u8>, String> {
     if repeat_count == 0 {
         return Err("Repeat count must be greater than 0.".to_string());
     }
@@ -24,7 +24,7 @@ pub fn x_js(
     input_wav: &[u8],
     repeat_count: u32,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match x(input_wav.to_vec(), repeat_count) {
+    match x(input_wav, repeat_count) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -57,7 +57,7 @@ mod tests {
         let input_wav_bytes = get_dummy();
         let repeat_count = 3;
 
-        let output_wav_bytes = x(input_wav_bytes.clone(), repeat_count)
+        let output_wav_bytes = x(&input_wav_bytes, repeat_count)
             .expect("x function failed");
 
         let input_duration = len(&input_wav_bytes).expect("Failed to get input duration");

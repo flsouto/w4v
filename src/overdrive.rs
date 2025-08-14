@@ -7,7 +7,7 @@ fn db_to_amplitude(db: f32) -> f32 {
     10.0_f32.powf(db / 20.0)
 }
 
-pub fn overdrive(input_wav: Vec<u8>, gain_db: f32, output_gain_db: f32) -> Result<Vec<u8>, String> {
+pub fn overdrive(input_wav: &[u8], gain_db: f32, output_gain_db: f32) -> Result<Vec<u8>, String> {
     let (mut samples, spec) = get_samples(input_wav)?;
 
     let input_amplitude = db_to_amplitude(gain_db);
@@ -34,7 +34,7 @@ pub fn overdrive_js(
     gain_db: f32,
     output_gain_db: f32,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match overdrive(input_wav.to_vec(), gain_db, output_gain_db) {
+    match overdrive(input_wav, gain_db, output_gain_db) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -71,7 +71,7 @@ mod tests {
         let gain_db = 10.0;
         let output_gain_db = -3.0;
 
-        let output_wav_bytes = overdrive(input_wav_bytes.clone(), gain_db, output_gain_db)
+        let output_wav_bytes = overdrive(&input_wav_bytes, gain_db, output_gain_db)
             .expect("overdrive function failed");
 
         // Basic check: output should be different from input

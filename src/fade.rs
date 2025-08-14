@@ -7,7 +7,7 @@ fn db_to_amplitude(db: f32) -> f32 {
 }
 
 pub fn fade(
-    input_wav_bytes: Vec<u8>,
+    input_wav_bytes: &[u8],
     initial_volume_db: f32,
     end_volume_db: f32,
 ) -> Result<Vec<u8>, String> {
@@ -33,7 +33,7 @@ pub fn fade_js(
     initial_volume_db: f32,
     end_volume_db: f32,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match fade(input_wav.to_vec(), initial_volume_db, end_volume_db) {
+    match fade(input_wav, initial_volume_db, end_volume_db) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -67,10 +67,10 @@ mod tests {
     #[test]
     fn test_fade_in_simple() {
         let input_wav = get_dummy();
-        let (original_samples, _) = get_samples(input_wav.clone()).unwrap();
+        let (original_samples, _) = get_samples(&input_wav).unwrap();
 
-        let output_wav = fade(input_wav, -30.0, 0.0).expect("Fade function failed");
-        let (processed_samples, _) = get_samples(output_wav).unwrap();
+        let output_wav = fade(&input_wav, -30.0, 0.0).expect("Fade function failed");
+        let (processed_samples, _) = get_samples(&output_wav).unwrap();
 
         let failing_indices: Vec<usize> = (0..100)
             .filter(|&i| processed_samples[i].abs() >= original_samples[i].abs())
@@ -86,10 +86,10 @@ mod tests {
     #[test]
     fn test_fade_out_simple() {
         let input_wav = get_dummy();
-        let (original_samples, _) = get_samples(input_wav.clone()).unwrap();
+        let (original_samples, _) = get_samples(&input_wav).unwrap();
 
-        let output_wav = fade(input_wav, 0.0, -30.0).expect("Fade function failed");
-        let (processed_samples, _) = get_samples(output_wav).unwrap();
+        let output_wav = fade(&input_wav, 0.0, -30.0).expect("Fade function failed");
+        let (processed_samples, _) = get_samples(&output_wav).unwrap();
 
         let num_samples = processed_samples.len();
         let failing_indices: Vec<usize> = (num_samples - 100..num_samples)

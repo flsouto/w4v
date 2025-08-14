@@ -7,7 +7,7 @@ use crate::len::len;
 
 
 pub fn cut(
-    input_wav_bytes: Vec<u8>,
+    input_wav_bytes: &[u8],
     start_offset_arg: &str,
     duration_arg: &str,
 ) -> Result<Vec<u8>, String> {
@@ -50,7 +50,7 @@ pub fn cut_js(
     start_offset: &str,
     duration: &str,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match cut(input_wav.to_vec(), start_offset, duration) {
+    match cut(input_wav, start_offset, duration) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -90,7 +90,7 @@ mod tests {
         // Test cutting a segment from the middle with absolute values
         let start_offset_abs = (original_duration / 4.0).to_string();
         let duration_abs = (original_duration / 2.0).to_string();
-        let output_wav_abs = cut(input_wav.clone(), &start_offset_abs, &duration_abs).expect("Cut function failed with absolute values");
+        let output_wav_abs = cut(&input_wav, &start_offset_abs, &duration_abs).expect("Cut function failed with absolute values");
 
         let processed_duration_abs = len(&output_wav_abs).expect("Failed to get processed duration for absolute values");
         assert!((processed_duration_abs - (original_duration / 2.0)).abs() < 0.01, "Cut duration should be accurate for absolute values");
@@ -99,7 +99,7 @@ mod tests {
         // Test cutting a segment from the middle with fractional values
         let start_offset_frac = "1/4";
         let duration_frac = "1/2";
-        let output_wav_frac = cut(input_wav.clone(), start_offset_frac, duration_frac).expect("Cut function failed with fractional values");
+        let output_wav_frac = cut(&input_wav, start_offset_frac, duration_frac).expect("Cut function failed with fractional values");
 
         let processed_duration_frac = len(&output_wav_frac).expect("Failed to get processed duration for fractional values");
         assert!((processed_duration_frac - (original_duration / 2.0)).abs() < 0.01, "Cut duration should be accurate for fractional values");
@@ -117,7 +117,7 @@ mod tests {
         let duration = "1/1000"; // A very small, non-integer duration
 
         // The cut function should not panic or return an error
-        let output_wav = cut(input_wav.clone(), start_offset, duration).expect("Cut function should handle channel alignment");
+        let output_wav = cut(&input_wav, start_offset, duration).expect("Cut function should handle channel alignment");
 
         // Verify that the output WAV is valid (can be read by len)
         let processed_duration = len(&output_wav).expect("Failed to get processed duration for channel alignment test");

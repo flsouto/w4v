@@ -2,7 +2,7 @@ use hound::{WavReader, SampleFormat, WavSpec};
 use std::io::Cursor;
 use std::fs;
 
-pub fn get_samples(input_wav: Vec<u8>) -> Result<(Vec<f32>, WavSpec), String> {
+pub fn get_samples(input_wav: &[u8]) -> Result<(Vec<f32>, WavSpec), String> {
     let cursor = Cursor::new(input_wav);
     let reader = WavReader::new(cursor)
         .map_err(|e| format!("Invalid WAV: {}", e))?;
@@ -74,7 +74,7 @@ mod tests {
         let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
         let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
 
-        let (samples, spec) = get_samples(input_wav).expect("Failed to get samples");
+        let (samples, spec) = get_samples(&input_wav).expect("Failed to get samples");
 
         assert!(!samples.is_empty(), "Samples should not be empty");
         assert!(spec.channels > 0, "Channels should be greater than 0");

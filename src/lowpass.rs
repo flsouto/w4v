@@ -4,7 +4,7 @@ use clap::Parser;
 use std::f32::consts::PI;
 
 pub fn lowpass(
-    input_wav_bytes: Vec<u8>,
+    input_wav_bytes: &[u8],
     cutoff_frequency: f32,
 ) -> Result<Vec<u8>, String> {
     let (mut samples, spec) = get_samples(input_wav_bytes)?;
@@ -31,7 +31,7 @@ pub fn lowpass_js(
     input_wav: &[u8],
     cutoff_frequency: f32,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match lowpass(input_wav.to_vec(), cutoff_frequency) {
+    match lowpass(input_wav, cutoff_frequency) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
@@ -64,7 +64,7 @@ mod tests {
         let input_wav_bytes = get_dummy();
         let cutoff_frequency = 1000.0; // Example cutoff frequency
 
-        let output_wav_bytes = lowpass(input_wav_bytes.clone(), cutoff_frequency)
+        let output_wav_bytes = lowpass(&input_wav_bytes, cutoff_frequency)
             .expect("lowpass function failed");
 
         // Check that the output has the same duration using the len function
