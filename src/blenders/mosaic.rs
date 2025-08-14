@@ -1,13 +1,13 @@
-use crate::{x,reverb,reverse,add,pick};
-use crate::mosaic as mosaic_fx;
+use crate::{x,reverb,reverse,add,pick_with_rng as pick};
+use crate::mosaic_with_rng as mosaic_fx;
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use rand::rngs::StdRng;
 
 pub fn mosaic(wavs: &[&[u8]], rng: &mut StdRng) -> Result<Vec<u8>, String>{
 
-    let mut w1 = pick( wavs[0], "1/16")?;
-    let mut w2 = pick( wavs[1], "1/16")?;
+    let mut w1 = pick( wavs[0], rng, "1/16")?;
+    let mut w2 = pick( wavs[1], rng, "1/16")?;
 
     if rng.gen_bool(0.5) {
         w1 = reverse(&w1)?;
@@ -18,7 +18,8 @@ pub fn mosaic(wavs: &[&[u8]], rng: &mut StdRng) -> Result<Vec<u8>, String>{
     }
 
     let pat = get_random_pattern(rng);    
-    let mut o = mosaic_fx(&add(&w1,&w2)?, &pat, rng.gen_range(0.1..=0.34))?;
+    let segment_len = rng.gen_range(0.1..=0.34);
+    let mut o = mosaic_fx(&add(&w1,&w2)?, rng, &pat, segment_len)?;
 
     // todo randomize params
     o = reverb(&o, rng.gen_range(30..=180), rng.gen_range(0.3..=0.8))?;

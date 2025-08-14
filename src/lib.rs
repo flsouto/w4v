@@ -34,6 +34,7 @@ pub use resize::resize;
 pub use flanger::flanger;
 pub use cut::cut;
 pub use pick::pick;
+pub use pick::pick_with_rng;
 pub use fade::fade;
 pub use highpass::highpass;
 pub use lowpass::lowpass;
@@ -46,6 +47,7 @@ pub use gain::gain;
 pub use maxgain::maxgain;
 pub use remix::remix;
 pub use mosaic::mosaic;
+pub use mosaic::mosaic_with_rng;
 pub use mix::mix;
 pub use silence::silence;
 

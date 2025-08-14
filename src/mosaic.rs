@@ -1,9 +1,11 @@
 use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
 use crate::utils::{get_samples, wrap_samples};
-use crate::pick::pick;
+use crate::pick;
 use crate::add::add;
 use clap::Parser;
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 
 #[derive(Parser, Debug)]
 #[command(about = "Creates a mosaic from a WAV file", long_about = None)]
@@ -30,6 +32,16 @@ pub fn mosaic(
     pattern: &str,
     segment_len: f32,
 ) -> Result<Vec<u8>, String> {
+    let mut rng = StdRng::from_entropy();
+    mosaic_with_rng(input_wav_bytes, &mut rng, pattern, segment_len)
+}
+
+pub fn mosaic_with_rng(
+    input_wav_bytes: &[u8],
+    rng: &mut StdRng,
+    pattern: &str,
+    segment_len: f32,
+) -> Result<Vec<u8>, String> {
     let (_samples, spec) = get_samples(input_wav_bytes)?;
     let mut segments: HashMap<char, Vec<u8>> = HashMap::new();
     let mut result_wav = wrap_samples(vec![], spec)?;
@@ -43,7 +55,7 @@ pub fn mosaic(
             silence.clone()
         } else {
             if !segments.contains_key(&c) {
-                let new_segment = pick(input_wav_bytes, &segment_len.to_string())?;
+                let new_segment = pick::pick_with_rng(input_wav_bytes, rng, &segment_len.to_string())?;
                 segments.insert(c, new_segment);
             }
             segments.get(&c).unwrap().clone()
@@ -60,7 +72,8 @@ pub fn mosaic_js(
     pattern: &str,
     segment_len: f32,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match mosaic(input_wav, pattern, segment_len) {
+    let mut rng = StdRng::from_entropy();
+    match mosaic_with_rng(input_wav, &mut rng, pattern, segment_len) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }

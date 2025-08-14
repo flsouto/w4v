@@ -4,9 +4,20 @@ use crate::len::len;
 use crate::time::resolve_time;
 use crate::cut::cut;
 use rand::Rng;
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 
 pub fn pick(
     input_wav_bytes: &[u8],
+    duration_arg: &str,
+) -> Result<Vec<u8>, String> {
+    let mut rng = StdRng::from_entropy();
+    pick_with_rng(input_wav_bytes, &mut rng, duration_arg)
+}
+
+pub fn pick_with_rng(
+    input_wav_bytes: &[u8],
+    rng: &mut StdRng,
     duration_arg: &str,
 ) -> Result<Vec<u8>, String> {
     let total_wav_duration = len(input_wav_bytes)?;
@@ -17,7 +28,7 @@ pub fn pick(
     }
 
     let max_start_offset = total_wav_duration - duration_seconds;
-    let start_offset = rand::thread_rng().gen_range(0.0..=max_start_offset);
+    let start_offset = rng.gen_range(0.0..=max_start_offset);
 
     cut(input_wav_bytes, &start_offset.to_string(), &duration_seconds.to_string())
 }
@@ -27,7 +38,8 @@ pub fn pick_js(
     input_wav: &[u8],
     duration: &str,
 ) -> Result<js_sys::Uint8Array, JsValue> {
-    match pick(input_wav, duration) {
+    let mut rng = StdRng::from_entropy();
+    match pick_with_rng(input_wav, &mut rng, duration) {
         Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
         Err(e) => Err(JsValue::from_str(&e)),
     }
