@@ -1,6 +1,8 @@
 use clap::Parser;
 use std::fs;
 use rand::seq::SliceRandom;
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 use w4v::reverb::{reverb, ReverbArgs};
 use w4v::maxgain::{maxgain, MaxGainArgs};
 use w4v::gain::{gain, GainArgs};
@@ -31,6 +33,8 @@ use w4v::mix::{mix, MixArgs};
 #[command(version = "1.0")]
 #[command(about = "Applies effects to WAV files", long_about = None)]
 struct Cli {
+    #[arg(long, help = "Optional seed for random operations")]
+    seed: Option<u64>,
     #[command(subcommand)]
     command: Commands,
 }
@@ -210,7 +214,11 @@ fn main() -> Result<(), String> {
         Commands::Blend(args) => {
             println!("Blending wavs in '{}' with '{}'...", args.input_folder, args.blender);
 
-            let mut rng = rand::thread_rng();
+            let mut rng: StdRng = match cli.seed {
+                Some(s) => SeedableRng::seed_from_u64(s),
+                None => SeedableRng::from_entropy(),
+            };
+
             let entries = fs::read_dir(&args.input_folder)
                 .map_err(|e| format!("Failed to read input folder: {}", e))?
                 .filter_map(|entry| entry.ok())
@@ -234,7 +242,7 @@ fn main() -> Result<(), String> {
                 samples_refs.push(wav_data.as_slice());
             }
 
-            let output_wav = blend(&samples_refs, &args.blender)?;
+            let output_wav = blend(&samples_refs, &mut rng, &args.blender)?;
             fs::write(&args.output_path, output_wav)
                 .map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output_path);

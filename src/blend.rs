@@ -1,5 +1,5 @@
 use rand::seq::IteratorRandom;
-use rand::thread_rng;
+use rand::rngs::StdRng;
 use std::collections::HashMap;
 use clap::Parser;
 
@@ -9,20 +9,19 @@ use crate::maxgain;
 type In<'a> = &'a [&'a [u8]];
 type Out = Result<Vec<u8>, String>;
 
-pub fn blend<'a>(wavs: In<'a>, blender: &str) -> Out{
+pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str) -> Out{
     
-    let mut blenders : HashMap<&str, fn(In<'a>) -> Out> = HashMap::new();
+    let mut blenders : HashMap<&str, fn(In<'a>, &mut StdRng) -> Out> = HashMap::new();
     blenders.insert("mosaic", mosaic);
     blenders.insert("delayer", delayer);
 
     if let Some(&func) = blenders.get(blender) {
-        return maxgain(&func(wavs)?);
+        return maxgain(&func(wavs, rng)?);
     }
 
     if blender == "rand" {
-        let mut rng = thread_rng();
-        let &func = blenders.values().choose(&mut rng).unwrap();
-        return maxgain(&func(wavs)?);
+        let &func = blenders.values().choose(rng).unwrap();
+        return maxgain(&func(wavs, rng)?);
     }    
 
     Err(format!("Invalid blender provided: {}", blender))
