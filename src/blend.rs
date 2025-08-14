@@ -3,7 +3,7 @@ use rand::thread_rng;
 use std::collections::HashMap;
 use clap::Parser;
 
-use crate::blenders::{mosaic};
+use crate::blenders::{mosaic,delayer};
 use crate::maxgain;
 
 type In = Vec<Vec<u8>>;
@@ -13,6 +13,7 @@ pub fn blend(wavs:In, blender:&str) -> Out{
     
     let mut blenders : HashMap<&str, fn(In) -> Out> = HashMap::new();
     blenders.insert("mosaic", mosaic);
+    blenders.insert("delayer", delayer);
 
     if let Some(&func) = blenders.get(blender) {
         return maxgain(func(wavs)?);
