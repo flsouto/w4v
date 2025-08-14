@@ -20,7 +20,9 @@ pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str) -> Out{
     }
 
     if blender == "rand" {
-        let &func = blenders.values().choose(rng).unwrap();
+        let fname = blenders.keys().choose(rng).unwrap();
+        println!("Rand blender resolved to '{}'", fname);
+        let &func = blenders.get(fname).unwrap();
         return maxgain(&func(wavs, rng)?);
     }    
 
