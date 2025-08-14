@@ -22,6 +22,7 @@ use w4v::lowpass::{lowpass, LowpassArgs};
 use w4v::remix::{remix, RemixArgs};
 use w4v::mosaic::{mosaic, MosaicArgs};
 use w4v::blend::{blend, BlendArgs};
+use w4v::mix::{mix, MixArgs};
 
 
 #[derive(Parser)]
@@ -57,7 +58,8 @@ enum Commands {
     MaxGain(MaxGainArgs),
     Remix(RemixArgs),
     Mosaic(MosaicArgs),
-    Blend(BlendArgs)
+    Blend(BlendArgs),
+    Mix(MixArgs),
 }
 
 fn main() -> Result<(), String> {
@@ -231,6 +233,14 @@ fn main() -> Result<(), String> {
             fs::write(&args.output_path, output_wav)
                 .map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output_path);
+        }
+        Commands::Mix(args) => {
+            println!("Mixing {} and {}...", args.input1, args.input2);
+            let input_wav1 = fs::read(&args.input1).map_err(|e| format!("Failed to read first input file: {}", e))?;
+            let input_wav2 = fs::read(&args.input2).map_err(|e| format!("Failed to read second input file: {}", e))?;
+            let output_wav = mix(input_wav1, input_wav2, args.normalize)?;
+            fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
+            println!("Saved to {}", args.output);
         }        
     }
 
