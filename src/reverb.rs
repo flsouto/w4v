@@ -71,14 +71,14 @@ mod tests {
         let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
         let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
 
-        let original_duration = len(input_wav.clone()).expect("Failed to get original duration");
+        let original_duration = len(&input_wav).expect("Failed to get original duration");
 
         // Apply reverb with some parameters
         let delay_ms = 100;
         let decay = 0.5;
         let output_wav = reverb(input_wav.clone(), delay_ms, decay).expect("Reverb function failed");
 
-        let processed_duration = len(output_wav.clone()).expect("Failed to get processed duration");
+        let processed_duration = len(&output_wav).expect("Failed to get processed duration");
 
         // Assert that the duration remains the same
         assert_eq!(original_duration, processed_duration, "Reverb should not change the duration");

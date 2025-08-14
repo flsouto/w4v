@@ -9,7 +9,7 @@ pub fn pick(
     input_wav_bytes: Vec<u8>,
     duration_arg: &str,
 ) -> Result<Vec<u8>, String> {
-    let total_wav_duration = len(input_wav_bytes.clone())?;
+    let total_wav_duration = len(&input_wav_bytes)?;
     let duration_seconds = resolve_time(duration_arg, total_wav_duration)?;
 
     if duration_seconds > total_wav_duration {
@@ -58,11 +58,11 @@ mod tests {
     #[test]
     fn test_pick_effect() {
         let input_wav = get_dummy();
-        let original_duration = len(input_wav.clone()).expect("Failed to get original duration");
+        let original_duration = len(&input_wav).expect("Failed to get original duration");
 
         let duration = (original_duration / 2.0).to_string();
         let output_wav = pick(input_wav.clone(), &duration).expect("Pick function failed");
-        let processed_duration = len(output_wav.clone()).expect("Failed to get processed duration");
+        let processed_duration = len(&output_wav).expect("Failed to get processed duration");
 
         assert!((processed_duration - (original_duration / 2.0)).abs() < 0.01, "Picked duration should be accurate");
         assert_ne!(input_wav, output_wav, "Pick should modify the audio content");

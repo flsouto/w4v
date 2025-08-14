@@ -90,7 +90,7 @@ fn main() -> Result<(), String> {
         Commands::Len(args) => {
             println!("Calculating length of {}...", args.input);
             let input_wav = fs::read(&args.input).map_err(|e| format!("Failed to read input file: {}", e))?;
-            let duration = len(input_wav)?;
+            let duration = len(&input_wav)?;
             println!("Duration: {:.2} seconds", duration);
         }
         Commands::Resize(args) => {

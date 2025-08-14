@@ -121,7 +121,7 @@ mod tests {
 
         let input_wav = get_dummy();
         
-        let original_duration = len(input_wav.clone()).expect("Failed to get original duration");
+        let original_duration = len(&input_wav).expect("Failed to get original duration");
 
         // Apply flanger with some parameters
         let delay_ms = 5.0;
@@ -130,7 +130,7 @@ mod tests {
         let feedback = 0.7;
         let output_wav = flanger(input_wav.clone(), delay_ms, depth_ms, rate_hz, feedback).expect("Flanger function failed");
 
-        let processed_duration = len(output_wav.clone()).expect("Failed to get processed duration");
+        let processed_duration = len(&output_wav).expect("Failed to get processed duration");
 
         // Assert that the duration remains the same
         assert_eq!(original_duration, processed_duration, "Flanger should not change the duration");

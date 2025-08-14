@@ -77,10 +77,10 @@ mod tests {
         let input_wav_bytes = get_dummy();
         let pattern = "1324";
 
-        let original_duration = len(input_wav_bytes.clone()).unwrap();
+        let original_duration = len(&input_wav_bytes).unwrap();
 
         let output_wav_bytes = remix(input_wav_bytes.clone(), pattern).expect("remix function failed");
-        let output_duration = len(output_wav_bytes).unwrap();
+        let output_duration = len(&output_wav_bytes).unwrap();
 
         assert!((output_duration - original_duration).abs() < 0.01, "Output duration should be close to original duration");
     }
@@ -91,11 +91,11 @@ mod tests {
         let pattern = "1111";
         let num_segments = pattern.len();
 
-        let original_duration = len(input_wav_bytes.clone()).unwrap();
+        let original_duration = len(&input_wav_bytes).unwrap();
         let segment_duration = original_duration / num_segments as f32;
 
         let output_wav_bytes = remix(input_wav_bytes.clone(), pattern).expect("remix function failed");
-        let output_duration = len(output_wav_bytes).unwrap();
+        let output_duration = len(&output_wav_bytes).unwrap();
 
         assert!((output_duration - (segment_duration * 4.0)).abs() < 0.1, "Output duration should be 4 times a segment duration");
     }

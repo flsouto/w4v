@@ -3,7 +3,7 @@ use hound::WavReader;
 use std::io::Cursor;
 use clap::Parser;
 
-pub fn len(input_wav: Vec<u8>) -> Result<f32, String> {
+pub fn len(input_wav: &[u8]) -> Result<f32, String> {
     let cursor = Cursor::new(input_wav);
     let reader = WavReader::new(cursor)
         .map_err(|e| format!("Invalid WAV: {}", e))?;
@@ -23,7 +23,7 @@ pub fn len(input_wav: Vec<u8>) -> Result<f32, String> {
 
 #[wasm_bindgen]
 pub fn len_js(input_wav: &[u8]) -> Result<f32, JsValue> {
-    match len(input_wav.to_vec()) {
+    match len(input_wav) {
         Ok(duration) => Ok(duration),
         Err(e) => Err(JsValue::from_str(&e)),
     }

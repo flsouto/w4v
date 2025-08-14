@@ -9,7 +9,7 @@ pub fn chop(input_wav: Vec<u8>, n: u32) -> Result<Vec<u8>, String> {
         return Err("n must be greater than 0.".to_string());
     }
 
-    let total_duration = len(input_wav.clone())?;
+    let total_duration = len(&input_wav)?;
     let segment_duration = total_duration / n as f32;
 
     // Cut the first segment
@@ -62,8 +62,8 @@ mod tests {
         let output_wav_bytes = chop(input_wav_bytes.clone(), n)
             .expect("chop function failed");
 
-        let input_duration = len(input_wav_bytes.clone()).expect("Failed to get input duration");
-        let output_duration = len(output_wav_bytes.clone()).expect("Failed to get output duration");
+        let input_duration = len(&input_wav_bytes).expect("Failed to get input duration");
+        let output_duration = len(&output_wav_bytes).expect("Failed to get output duration");
 
         // The duration should be approximately the same as the input duration
         // due to floating point inaccuracies, we'll use a small delta for comparison

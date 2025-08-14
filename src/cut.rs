@@ -11,7 +11,7 @@ pub fn cut(
     start_offset_arg: &str,
     duration_arg: &str,
 ) -> Result<Vec<u8>, String> {
-    let total_wav_duration = len(input_wav_bytes.clone())?;
+    let total_wav_duration = len(&input_wav_bytes)?;
 
     let start_offset_seconds = resolve_time(start_offset_arg, total_wav_duration)?;
     let duration_seconds = resolve_time(duration_arg, total_wav_duration)?;
@@ -85,14 +85,14 @@ mod tests {
     #[test]
     fn test_cut_effect() {
         let input_wav = get_dummy();
-        let original_duration = len(input_wav.clone()).expect("Failed to get original duration");
+        let original_duration = len(&input_wav).expect("Failed to get original duration");
 
         // Test cutting a segment from the middle with absolute values
         let start_offset_abs = (original_duration / 4.0).to_string();
         let duration_abs = (original_duration / 2.0).to_string();
         let output_wav_abs = cut(input_wav.clone(), &start_offset_abs, &duration_abs).expect("Cut function failed with absolute values");
 
-        let processed_duration_abs = len(output_wav_abs.clone()).expect("Failed to get processed duration for absolute values");
+        let processed_duration_abs = len(&output_wav_abs).expect("Failed to get processed duration for absolute values");
         assert!((processed_duration_abs - (original_duration / 2.0)).abs() < 0.01, "Cut duration should be accurate for absolute values");
         assert_ne!(input_wav, output_wav_abs, "Cut should modify the audio content for absolute values");
 
@@ -101,7 +101,7 @@ mod tests {
         let duration_frac = "1/2";
         let output_wav_frac = cut(input_wav.clone(), start_offset_frac, duration_frac).expect("Cut function failed with fractional values");
 
-        let processed_duration_frac = len(output_wav_frac.clone()).expect("Failed to get processed duration for fractional values");
+        let processed_duration_frac = len(&output_wav_frac).expect("Failed to get processed duration for fractional values");
         assert!((processed_duration_frac - (original_duration / 2.0)).abs() < 0.01, "Cut duration should be accurate for fractional values");
         assert_ne!(input_wav, output_wav_frac, "Cut should modify the audio content for fractional values");
     }
@@ -120,7 +120,7 @@ mod tests {
         let output_wav = cut(input_wav.clone(), start_offset, duration).expect("Cut function should handle channel alignment");
 
         // Verify that the output WAV is valid (can be read by len)
-        let processed_duration = len(output_wav).expect("Failed to get processed duration for channel alignment test");
+        let processed_duration = len(&output_wav).expect("Failed to get processed duration for channel alignment test");
         assert!(processed_duration >= 0.0, "Processed duration should be non-negative");
     }
 }

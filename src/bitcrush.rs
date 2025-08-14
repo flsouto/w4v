@@ -110,8 +110,8 @@ mod tests {
             .expect("bitcrush function failed");
 
         // Check that the output has the same duration using the len function
-        let input_duration = len(input_wav_bytes.clone()).expect("Failed to get input duration");
-        let output_duration = len(output_wav_bytes.clone()).expect("Failed to get output duration");
+        let input_duration = len(&input_wav_bytes).expect("Failed to get input duration");
+        let output_duration = len(&output_wav_bytes).expect("Failed to get output duration");
         assert_eq!(input_duration, output_duration, "Output WAV duration should be the same as input WAV duration");
 
         // Check that the content has changed

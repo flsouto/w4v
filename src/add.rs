@@ -70,9 +70,9 @@ mod tests {
         let output_wav_bytes = add(input_wav_bytes1.clone(), input_wav_bytes2.clone())
             .expect("add function failed");
 
-        let input_duration1 = len(input_wav_bytes1.clone()).expect("Failed to get input1 duration");
-        let input_duration2 = len(input_wav_bytes2.clone()).expect("Failed to get input2 duration");
-        let output_duration = len(output_wav_bytes.clone()).expect("Failed to get output duration");
+        let input_duration1 = len(&input_wav_bytes1).expect("Failed to get input1 duration");
+        let input_duration2 = len(&input_wav_bytes2).expect("Failed to get input2 duration");
+        let output_duration = len(&output_wav_bytes).expect("Failed to get output duration");
 
         assert_eq!(output_duration, input_duration1 + input_duration2,
                    "Output duration should be the sum of input durations");

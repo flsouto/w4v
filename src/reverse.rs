@@ -45,11 +45,11 @@ mod tests {
         let dummy_wav_path = format!("{}/tests/data/dummy.wav", env!("CARGO_MANIFEST_DIR"));
         let input_wav = fs::read(dummy_wav_path).expect("Failed to read dummy.wav");
 
-        let original_duration = len(input_wav.clone()).expect("Failed to get original duration");
+        let original_duration = len(&input_wav).expect("Failed to get original duration");
 
         let output_wav = reverse(input_wav.clone()).expect("Reverse function failed");
 
-        let processed_duration = len(output_wav.clone()).expect("Failed to get processed duration");
+        let processed_duration = len(&output_wav).expect("Failed to get processed duration");
 
         // Assert that the duration remains the same
         assert_eq!(original_duration, processed_duration, "Reverse should not change the duration");

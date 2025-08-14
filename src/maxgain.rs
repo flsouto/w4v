@@ -74,8 +74,8 @@ mod tests {
         }
 
         // Check that the output duration remains the same
-        let input_duration = len(input_wav_bytes.clone()).expect("Failed to get input duration");
-        let output_duration = len(output_wav_bytes.clone()).expect("Failed to get output duration");
+        let input_duration = len(&input_wav_bytes).expect("Failed to get input duration");
+        let output_duration = len(&output_wav_bytes).expect("Failed to get output duration");
         assert_eq!(input_duration, output_duration, "Maxgain should not change the duration");
 
         // Check that the maximum absolute sample in the output is close to 1.0 (if gain was applied)

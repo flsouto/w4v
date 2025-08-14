@@ -60,8 +60,8 @@ mod tests {
         let output_wav_bytes = x(input_wav_bytes.clone(), repeat_count)
             .expect("x function failed");
 
-        let input_duration = len(input_wav_bytes.clone()).expect("Failed to get input duration");
-        let output_duration = len(output_wav_bytes.clone()).expect("Failed to get output duration");
+        let input_duration = len(&input_wav_bytes).expect("Failed to get input duration");
+        let output_duration = len(&output_wav_bytes).expect("Failed to get output duration");
 
         assert_eq!(output_duration, input_duration * repeat_count as f32,
                    "Output duration should be input duration multiplied by repeat count");

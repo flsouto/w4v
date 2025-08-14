@@ -43,11 +43,11 @@ mod tests {
 
         assert_eq!(segments.len(), n, "Should produce n segments");
 
-        let original_duration = len(input_wav_bytes).unwrap();
+        let original_duration = len(&input_wav_bytes).unwrap();
         let segment_duration = original_duration / n as f32;
 
         for (i, segment) in segments.iter().enumerate() {
-            let duration = len(segment.clone()).unwrap();
+            let duration = len(&segment).unwrap();
             if i < n - 1 {
                 assert!((duration - segment_duration).abs() < 0.01, "Segment {} duration is incorrect", i);
             } else {

@@ -24,6 +24,7 @@ pub mod mosaic;
 pub mod blend;
 pub mod blenders;
 pub mod mix;
+pub mod silence;
 
 pub use reverb::reverb;
 pub use reverse::reverse;
@@ -46,6 +47,7 @@ pub use maxgain::maxgain;
 pub use remix::remix;
 pub use mosaic::mosaic;
 pub use mix::mix;
+pub use silence::silence;
 
 pub use reverb::reverb_js;
 pub use reverse::reverse_js;
@@ -68,4 +70,4 @@ pub use maxgain::maxgain_js;
 pub use remix::remix_js;
 pub use mosaic::mosaic_js;
 pub use mix::mix_js;
-
+pub use silence::silence_js;

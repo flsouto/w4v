@@ -80,7 +80,7 @@ mod tests {
 
         let output_wav = mosaic(input_wav, pattern, segment_len).expect("mosaic function failed");
 
-        let output_duration = len(output_wav).expect("Failed to get output duration");
+        let output_duration = len(&output_wav).expect("Failed to get output duration");
         let expected_duration = pattern.chars().count() as f32 * segment_len;
 
         assert!((output_duration - expected_duration).abs() < 0.01, "Mosaic duration is incorrect");
