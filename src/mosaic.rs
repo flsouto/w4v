@@ -55,7 +55,8 @@ pub fn mosaic_with_rng(
             silence.clone()
         } else {
             if !segments.contains_key(&c) {
-                let new_segment = pick::pick_with_rng(input_wav_bytes, rng, &segment_len.to_string())?;
+                let mut new_segment = pick::pick_with_rng(input_wav_bytes, rng, &segment_len.to_string())?;
+                new_segment = crate::fade(&new_segment,0.0,-30.0)?;
                 segments.insert(c, new_segment);
             }
             segments.get(&c).unwrap().clone()

@@ -50,6 +50,7 @@ pub use mosaic::mosaic;
 pub use mosaic::mosaic_with_rng;
 pub use mix::mix;
 pub use silence::silence;
+pub use utils::normalize_speed;
 
 pub use reverb::reverb_js;
 pub use reverse::reverse_js;

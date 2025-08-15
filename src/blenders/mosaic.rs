@@ -18,11 +18,11 @@ pub fn mosaic(wavs: &[&[u8]], rng: &mut StdRng) -> Result<Vec<u8>, String>{
     }
 
     let pat = get_random_pattern(rng);    
-    let segment_len = rng.gen_range(0.1..=0.34);
+    let segment_len = rng.gen_range(0.1..=0.2);
     let mut o = mosaic_fx(&add(&w1,&w2)?, rng, &pat, segment_len)?;
 
     // todo randomize params
-    o = reverb(&o, rng.gen_range(30..=180), rng.gen_range(0.3..=0.8))?;
+    o = reverb(&o, rng.gen_range(80..=180), rng.gen_range(0.3..=0.8))?;
 
     x(&o, 4)
 

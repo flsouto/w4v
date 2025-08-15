@@ -64,6 +64,15 @@ pub fn get_dummy() -> Vec<u8> {
     fs::read(dummy_wav_path).expect("Failed to read dummy.wav")
 }
 
+pub fn normalize_speed(wav1:&[u8], wav2:&[u8]) -> Result<(Vec<u8>,Vec<u8>,f32), String> {
+    let len1 = crate::len(wav1)?;
+    let len2 = crate::len(wav2)?;
+    let avg_len = (len1 + len2) / 2.0;
+    let o1 = crate::resize(wav1, avg_len)?;
+    let o2 = crate::resize(wav2, avg_len)?;
+    Ok((o1, o2, avg_len))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

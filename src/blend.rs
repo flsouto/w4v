@@ -3,7 +3,7 @@ use rand::rngs::StdRng;
 use std::collections::HashMap;
 use clap::Parser;
 
-use crate::blenders::{mosaic,delayer};
+use crate::blenders::{mosaic,delayer,xfade};
 use crate::maxgain;
 
 type In<'a> = &'a [&'a [u8]];
@@ -14,6 +14,7 @@ pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str) -> Out{
     let mut blenders : HashMap<&str, fn(In<'a>, &mut StdRng) -> Out> = HashMap::new();
     blenders.insert("mosaic", mosaic);
     blenders.insert("delayer", delayer);
+    blenders.insert("xfade", xfade);
 
     if let Some(&func) = blenders.get(blender) {
         return maxgain(&func(wavs, rng)?);
