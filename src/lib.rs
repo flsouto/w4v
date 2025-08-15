@@ -25,6 +25,7 @@ pub mod blend;
 pub mod blenders;
 pub mod mix;
 pub mod silence;
+pub mod fx;
 
 pub use reverb::reverb;
 pub use reverse::reverse;

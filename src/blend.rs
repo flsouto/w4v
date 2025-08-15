@@ -1,5 +1,6 @@
 use rand::seq::IteratorRandom;
 use rand::rngs::StdRng;
+use rand::Rng;
 use std::collections::HashMap;
 use clap::Parser;
 
@@ -16,18 +17,24 @@ pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str) -> Out{
     blenders.insert("delayer", delayer);
     blenders.insert("xfade", xfade);
 
+    let mut out = Err(format!("Invalid blender provided: {}", blender));
+    
     if let Some(&func) = blenders.get(blender) {
-        return maxgain(&func(wavs, rng)?);
+        out = func(wavs, rng);
     }
 
     if blender == "rand" {
         let fname = blenders.keys().choose(rng).unwrap();
         println!("Rand blender resolved to '{}'", fname);
         let &func = blenders.get(fname).unwrap();
-        return maxgain(&func(wavs, rng)?);
-    }    
+        out = func(wavs, rng);
+    }
 
-    Err(format!("Invalid blender provided: {}", blender))
+    if rng.gen_bool(0.3) {
+        println!("Applying random fx");
+        out = crate::fx::apply_rand_fx_with_rng(&out?, rng);
+    }
+    maxgain(&out?)
 }
 
 #[derive(Parser)]
