@@ -75,3 +75,4 @@ pub use remix::remix_js;
 pub use mosaic::mosaic_js;
 pub use mix::mix_js;
 pub use silence::silence_js;
+pub use blend::blend_js;

@@ -18,8 +18,23 @@
   <audio id="player" controls></audio>
   <p id="duration"></p>
 
+  <hr>
+
+  <h1>WAV Blender</h1>
+  <p>Select multiple WAV files to blend them together.</p>
+  <input type="file" id="wav-files" multiple accept=".wav"><br><br>
+  <label for="blender">Blender:</label>
+  <select id="blender">
+    <option value="mosaic">Mosaic</option>
+    <option value="delayer">Delayer</option>
+    <option value="xfade">XFade</option>
+    <option value="rand">Random</option>
+  </select><br><br>
+  <button id="blend-button">Blend</button><br><br>
+  <audio id="result-audio" controls></audio>
+
   <script type="module">
-    import init, { reverb_js, reverse_js, reverb_reverse_js, speed_js, len_js, resize_js } from "./pkg/w4v.js";
+    import init, { reverb_js, reverse_js, speed_js, len_js, resize_js, blend_js } from "./pkg/w4v.js";
 
     await init();
 
@@ -48,22 +63,6 @@
 
         try {
           const processed = reverse_js(uint8Array);
-          const blob = new Blob([processed], { type: "audio/wav" });
-          document.getElementById("player").src = URL.createObjectURL(blob);
-        } catch (e) {
-          alert("Error: " + e);
-        }
-    });
-
-    document.getElementById("reverbReverseBtn").addEventListener("click", async () => {
-      const fileInput = document.getElementById("file");
-      if (!fileInput.files.length) return alert("Choose a WAV first!");
-
-      const arrayBuffer = await fileInput.files[0].arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-
-        try {
-          const processed = reverb_reverse_js(uint8Array, 400, .5);
           const blob = new Blob([processed], { type: "audio/wav" });
           document.getElementById("player").src = URL.createObjectURL(blob);
         } catch (e) {
@@ -131,6 +130,39 @@
           document.getElementById("player").src = URL.createObjectURL(blob);
         } catch (e) {
           alert("Error: " + e);
+        }
+    });
+
+    document.getElementById("blend-button").addEventListener("click", async () => {
+        const fileInput = document.getElementById('wav-files');
+        const blenderSelect = document.getElementById('blender');
+        const resultAudio = document.getElementById('result-audio');
+
+        const files = fileInput.files;
+        if (files.length < 3) {
+            alert('Please select at least three WAV files for blending.');
+            return;
+        }
+
+        const wav1ArrayBuffer = await files[0].arrayBuffer();
+        const wav1Bytes = new Uint8Array(wav1ArrayBuffer);
+
+        const wav2ArrayBuffer = await files[1].arrayBuffer();
+        const wav2Bytes = new Uint8Array(wav2ArrayBuffer);
+
+        const wav3ArrayBuffer = await files[2].arrayBuffer();
+        const wav3Bytes = new Uint8Array(wav3ArrayBuffer);
+
+        const blender = blenderSelect.value;
+        const seed = BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+
+        try {
+            const resultBytes = blend_js(wav1Bytes, wav2Bytes, wav3Bytes, blender, seed);
+            const blob = new Blob([resultBytes], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            resultAudio.src = url;
+        } catch (error) {
+            alert(`Error blending files: ${error}`);
         }
     });
   </script>
