@@ -6,7 +6,7 @@ use clap::Parser;
 use wasm_bindgen::prelude::*;
 use rand::SeedableRng;
 
-use crate::blenders::{mosaic,delayer,xfade};
+use crate::blenders::{mosaic,delayer,xfade,outbreaker};
 use crate::maxgain;
 
 type In<'a> = &'a [&'a [u8]];
@@ -18,6 +18,7 @@ pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str) -> Out{
     blenders.insert("mosaic", mosaic);
     blenders.insert("delayer", delayer);
     blenders.insert("xfade", xfade);
+    blenders.insert("outbreaker", outbreaker);
 
     let mut out = Err(format!("Invalid blender provided: {}", blender));
     

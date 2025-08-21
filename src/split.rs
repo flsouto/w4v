@@ -5,22 +5,28 @@ pub fn split(input_wav: &[u8], n: usize) -> Result<Vec<Vec<u8>>, String> {
         return Ok(vec![input_wav.to_vec()]);
     }
     let (samples, spec) = get_samples(input_wav)?;
-    let total_samples = samples.len();
-    let segment_length = total_samples / n;
+    let channels = spec.channels as usize;
+    let total_frames = samples.len() / channels;
+    if n > total_frames {
+        return Err("The number of segments is larger than the number of frames.".to_string());
+    }
+    let segment_frames = total_frames / n;
 
-    if segment_length == 0 {
-        return Err("The number of segments is larger than the number of samples.".to_string());
+    if segment_frames == 0 {
+        return Err("The number of segments is larger than the number of frames.".to_string());
     }
 
     let mut segments = Vec::new();
     for i in 0..n {
-        let start = i * segment_length;
-        let end = if i == n - 1 {
-            total_samples
+        let start_frame = i * segment_frames;
+        let end_frame = if i == n - 1 {
+            total_frames
         } else {
-            (i + 1) * segment_length
+            (i + 1) * segment_frames
         };
-        let segment_samples = samples[start..end].to_vec();
+        let start_sample = start_frame * channels;
+        let end_sample = end_frame * channels;
+        let segment_samples = samples[start_sample..end_sample].to_vec();
         let segment_wav = wrap_samples(segment_samples.clone(), spec)?;
         segments.push(segment_wav);
     }
