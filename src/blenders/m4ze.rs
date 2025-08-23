@@ -1,5 +1,5 @@
 
-use crate::{resize, len, split, mix, gain, speed, add, join};
+use crate::{resize, len, split, mix, speed, add, join, silence};
 use rand::Rng;
 use rand::rngs::StdRng;
 
@@ -24,8 +24,11 @@ pub fn m4ze(wavs: &[&[u8]], rng: &mut StdRng) -> Result<Vec<u8>, String> {
         speeder = true;
         speeder_rate = rng.gen_range(1..=4);
     }
-    let mut l1: Vec<Vec<u8>> = Vec::new();
-    let mut l2: Vec<Vec<u8>> = Vec::new();
+    let mut l1: Vec<Vec<u8>> = Vec::with_capacity(a.len());
+    let mut l2: Vec<Vec<u8>> = Vec::with_capacity(a.len());
+
+    let chunk_duration = len(&a[0])?;
+    let silent_chunk = silence(chunk_duration)?;
 
     let mut b_iter = b.into_iter().peekable();
     for s in a.into_iter() {
@@ -34,7 +37,7 @@ pub fn m4ze(wavs: &[&[u8]], rng: &mut StdRng) -> Result<Vec<u8>, String> {
                 1 => {
                     if normal == 1 || (normal != 0 && rng.gen_bool(0.5)) {
                         l1.push(mix(&s, &t, false)?);
-                        l2.push(gain(&s, -100.0)?);
+                        l2.push(silent_chunk.clone());
                     } else {
                         l1.push(s);
                         l2.push(t);
@@ -42,10 +45,10 @@ pub fn m4ze(wavs: &[&[u8]], rng: &mut StdRng) -> Result<Vec<u8>, String> {
                 },
                 2 => {
                     l1.push(s);
-                    l2.push(gain(&t, -100.0)?);
+                    l2.push(silent_chunk.clone());
                 },
                 3 => {
-                    l1.push(gain(&s, -100.0)?);
+                    l1.push(silent_chunk.clone());
                     if speeder && rng.gen_range(0..=speeder_rate) == 0 {
                         if let Some(next_t) = b_iter.peek() {
                             let t_mod = speed(&t, 2.0)?;
