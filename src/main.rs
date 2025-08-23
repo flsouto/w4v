@@ -242,7 +242,7 @@ fn main() -> Result<(), String> {
                 samples_refs.push(wav_data.as_slice());
             }
 
-            let output_wav = blend(&samples_refs, &mut rng, &args.blender)?;
+            let output_wav = blend(&samples_refs, &mut rng, &args.blender, args.fx.as_deref())?;
             fs::write(&args.output_path, output_wav)
                 .map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output_path);

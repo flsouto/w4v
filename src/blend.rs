@@ -1,6 +1,5 @@
 use rand::seq::IteratorRandom;
 use rand::rngs::StdRng;
-use rand::Rng;
 use std::collections::HashMap;
 use clap::Parser;
 use wasm_bindgen::prelude::*;
@@ -12,7 +11,7 @@ use crate::maxgain;
 type In<'a> = &'a [&'a [u8]];
 type Out = Result<Vec<u8>, String>;
 
-pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str) -> Out{
+pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str, post_fx: Option<&str>) -> Out{
     
     let mut blenders : HashMap<&str, fn(In<'a>, &mut StdRng) -> Out> = HashMap::new();
     blenders.insert("mosaic", mosaic);
@@ -33,11 +32,12 @@ pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str) -> Out{
         out = func(wavs, rng);
     }
 
-    if rng.gen_bool(0.3) {
-        println!("Applying random fx");
-        out = crate::fx::apply_rand_fx_with_rng(&out?, rng);
+    if let Some(fx) = post_fx {
+        out = crate::fx::apply_fx_with_rng(&out?, rng, fx.to_string());
     }
+
     maxgain(&out?)
+
 }
 
 #[derive(Parser)]
@@ -53,17 +53,20 @@ pub struct BlendArgs{
     #[arg()]
     pub blender : String,
 
+    #[arg()]
+    pub fx: Option<String>
+
 
 }
 
-use hound::{WavReader, WavWriter, WavSpec, SampleFormat};
+use hound::{WavReader, WavWriter, SampleFormat};
 use std::io::Cursor;
 
 #[wasm_bindgen]
-pub fn blend_js(wav1: Vec<u8>, wav2: Vec<u8>, wav3: Vec<u8>, blender: &str, seed: u64) -> Result<Vec<u8>, String> {
+pub fn blend_js(wav1: Vec<u8>, wav2: Vec<u8>, wav3: Vec<u8>, seed: u64, blender: &str, post_fx: Option<String>) -> Result<Vec<u8>, String> {
     let mut rng = StdRng::seed_from_u64(seed);
     let wavs: Vec<&[u8]> = vec![wav1.as_slice(), wav2.as_slice(), wav3.as_slice()];
-    let blended_wav_bytes = self::blend(&wavs, &mut rng, blender)?;
+    let blended_wav_bytes = self::blend(&wavs, &mut rng, blender, post_fx.as_deref())?;
 
     // Re-encode to 16-bit
     let mut reader = WavReader::new(Cursor::new(&blended_wav_bytes))

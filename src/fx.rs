@@ -3,7 +3,12 @@ use rand::prelude::SliceRandom;
 use rand::Rng;
 use crate::{bitcrush, flanger, highpass, lowpass};
 
-pub fn apply_fx_with_rng(wav:&[u8], rng: &mut StdRng, fx: String) -> Result<Vec<u8>,String> {
+pub fn apply_fx_with_rng(wav:&[u8], rng: &mut StdRng, mut fx: String) -> Result<Vec<u8>,String> {
+
+    
+    if fx == "rand" {
+        fx = get_rand_fx(rng);
+    }
 
     match fx.as_str() {
         "highpass" => highpass(wav, rng.gen_range(4000.0..=5000.0)),
