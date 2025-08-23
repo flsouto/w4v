@@ -10,15 +10,23 @@ use crate::maxgain;
 
 type In<'a> = &'a [&'a [u8]];
 type Out = Result<Vec<u8>, String>;
+type BlenderFn<'a> = fn(In<'a>, &mut StdRng) -> Out;
+
+pub fn get_blenders<'a>() -> HashMap<&'a str, BlenderFn<'a>> {
+
+    HashMap::from([
+        ("mosaic", mosaic as BlenderFn),
+        ("delayer", delayer as BlenderFn),    
+        ("xfade", xfade as BlenderFn),
+        ("outbreaker", outbreaker as BlenderFn),
+        ("m4ze", m4ze as BlenderFn),
+    ])
+
+}
 
 pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str, post_fx: Option<&str>) -> Out{
     
-    let mut blenders : HashMap<&str, fn(In<'a>, &mut StdRng) -> Out> = HashMap::new();
-    blenders.insert("mosaic", mosaic);
-    blenders.insert("delayer", delayer);
-    blenders.insert("xfade", xfade);
-    blenders.insert("outbreaker", outbreaker);
-    blenders.insert("m4ze", m4ze);
+    let blenders = get_blenders();
 
     let mut out = Err(format!("Invalid blender provided: {}", blender));
     
@@ -62,6 +70,11 @@ pub struct BlendArgs{
 
 use hound::{WavReader, WavWriter, SampleFormat};
 use std::io::Cursor;
+
+#[wasm_bindgen]
+pub fn get_blenders_js() -> Vec<String> {
+    get_blenders().keys().map(|str|str.to_string()).collect()
+}
 
 #[wasm_bindgen]
 pub fn blend_js(wav1: Vec<u8>, wav2: Vec<u8>, wav3: Vec<u8>, seed: u64, blender: &str, post_fx: Option<String>) -> Result<Vec<u8>, String> {
