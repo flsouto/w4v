@@ -26,6 +26,7 @@ pub mod blenders;
 pub mod mix;
 pub mod silence;
 pub mod fx;
+pub mod join;
 
 pub use reverb::reverb;
 pub use reverse::reverse;
@@ -53,6 +54,7 @@ pub use mix::mix;
 pub use silence::silence;
 pub use utils::normalize_speed;
 pub use split::split;
+pub use join::join;
 
 pub use reverb::reverb_js;
 pub use reverse::reverse_js;

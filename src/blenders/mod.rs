@@ -7,3 +7,6 @@ pub use mosaic::mosaic;
 pub use delayer::delayer;
 pub use xfade::xfade;
 pub use outbreaker::outbreaker;
+
+pub mod m4ze;
+pub use m4ze::m4ze;
