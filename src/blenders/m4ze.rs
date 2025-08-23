@@ -10,8 +10,8 @@ pub fn m4ze(wavs: &[&[u8]], rng: &mut StdRng) -> Result<Vec<u8>, String> {
     let s2 = resize(s2, len(s1)?)?;
 
     let size = 64;
-    let mut a = split(s1, size)?;
-    let mut b = split(&s2, size)?;
+    let a = split(s1, size)?;
+    let b = split(&s2, size)?;
 
     if a.is_empty() || b.is_empty() {
         return Err("Input samples are too short to be split into segments.".to_string());
@@ -24,51 +24,41 @@ pub fn m4ze(wavs: &[&[u8]], rng: &mut StdRng) -> Result<Vec<u8>, String> {
         speeder = true;
         speeder_rate = rng.gen_range(1..=4);
     }
-    let clone_t = rng.gen_bool(0.5);
-
     let mut l1: Vec<Vec<u8>> = Vec::new();
     let mut l2: Vec<Vec<u8>> = Vec::new();
 
-    for _ in 0..size {
-        if a.is_empty() || b.is_empty() {
-            break;
-        }
-        let s = a.remove(0);
-        let mut t = b.remove(0);
-
-        match rng.gen_range(1..=3) {
-            1 => {
-                if normal == 1 || (normal != 0 && rng.gen_bool(0.5)) {
-                    l1.push(mix(&s, &t, false)?);
-                    l2.push(gain(&s, -100.0)?);
-                } else {
-                    l1.push(s);
-                    if clone_t {
-                        l2.push(t.clone());
+    let mut b_iter = b.into_iter().peekable();
+    for s in a.into_iter() {
+        if let Some(mut t) = b_iter.next() {
+            match rng.gen_range(1..=3) {
+                1 => {
+                    if normal == 1 || (normal != 0 && rng.gen_bool(0.5)) {
+                        l1.push(mix(&s, &t, false)?);
+                        l2.push(gain(&s, -100.0)?);
                     } else {
+                        l1.push(s);
                         l2.push(t);
                     }
-                }
-            },
-            2 => {
-                l1.push(s);
-                l2.push(gain(&t, -100.0)?);
-            },
-            3 => {
-                l1.push(gain(&s, -100.0)?);
-                if speeder && rng.gen_range(0..=speeder_rate) == 0 && !b.is_empty() {
-                    let next_t = b[0].clone();
-                    let t_mod = speed(&t, 2.0)?;
-                    let next_t_mod = speed(&next_t, 2.0)?;
-                    t = add(&t_mod, &next_t_mod)?;
-                }
-                if clone_t {
-                    l2.push(t.clone());
-                } else {
+                },
+                2 => {
+                    l1.push(s);
+                    l2.push(gain(&t, -100.0)?);
+                },
+                3 => {
+                    l1.push(gain(&s, -100.0)?);
+                    if speeder && rng.gen_range(0..=speeder_rate) == 0 {
+                        if let Some(next_t) = b_iter.peek() {
+                            let t_mod = speed(&t, 2.0)?;
+                            let next_t_mod = speed(next_t, 2.0)?;
+                            t = add(&t_mod, &next_t_mod)?;
+                        }
+                    }
                     l2.push(t);
-                }
-            },
-            _ => unreachable!(),
+                },
+                _ => unreachable!(),
+            }
+        } else {
+            break;
         }
     }
 
