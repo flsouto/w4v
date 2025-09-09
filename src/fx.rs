@@ -1,9 +1,17 @@
 use rand::rngs::StdRng;
 use rand::prelude::SliceRandom;
 use rand::Rng;
-use crate::{bitcrush, flanger, highpass, lowpass, reverb, reverse, overdrive};
+use crate::{bitcrush, flanger, highpass, lowpass, reverb, reverse, overdrive, speed};
 
 pub fn apply_fx_with_rng(wav:&[u8], rng: &mut StdRng, mut fx: String) -> Result<Vec<u8>,String> {
+
+    if fx.contains(",") {
+        let mut o = wav.to_vec();
+        for each_fx in fx.split(",") {
+            o = apply_fx_with_rng(&o, rng, each_fx.to_string())?;
+        }
+        return Ok(o);
+    }
     
     if fx == "rand" {
         fx = get_rand_fx(rng);
@@ -28,6 +36,8 @@ pub fn apply_fx_with_rng(wav:&[u8], rng: &mut StdRng, mut fx: String) -> Result<
 
             flanger(wav, delay_ms, depth_ms, rate_hz, feedback)
         },
+        "faster" => speed(wav, rng.gen_range(1.1 ..= 1.9)),
+        "slower" => speed(wav, rng.gen_range(0.5 ..= 0.9)),
         _ => Err(format!("FX not recognized: {}", fx))
     }
 }
