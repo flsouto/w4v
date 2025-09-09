@@ -5,7 +5,7 @@ use clap::Parser;
 use wasm_bindgen::prelude::*;
 use rand::SeedableRng;
 
-use crate::blenders::{mosaic,delayer,xfade,outbreaker,m4ze};
+use crate::blenders::{mosaic,delayer,xfade,outbreaker,m4ze,samplicat};
 use crate::maxgain;
 
 type In<'a> = &'a [&'a [u8]];
@@ -20,6 +20,7 @@ pub fn get_blenders<'a>() -> HashMap<&'a str, BlenderFn<'a>> {
         ("xfade", xfade as BlenderFn),
         ("outbreaker", outbreaker as BlenderFn),
         ("m4ze", m4ze as BlenderFn),
+        ("samplicat", samplicat as BlenderFn)
     ])
 
 }

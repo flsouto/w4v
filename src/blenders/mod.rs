@@ -10,3 +10,6 @@ pub use outbreaker::outbreaker;
 
 pub mod m4ze;
 pub use m4ze::m4ze;
+
+pub mod samplicat;
+pub use samplicat::samplicat;
