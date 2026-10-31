@@ -1,6 +1,9 @@
 use crate::utils::{get_samples, wrap_samples};
 
 pub fn split(input_wav: &[u8], n: usize) -> Result<Vec<Vec<u8>>, String> {
+    if n == 0 {
+        return Err("The number of segments must be positive.".to_string());
+    }
     if n == 1 {
         return Ok(vec![input_wav.to_vec()]);
     }
@@ -27,7 +30,7 @@ pub fn split(input_wav: &[u8], n: usize) -> Result<Vec<Vec<u8>>, String> {
         let start_sample = start_frame * channels;
         let end_sample = end_frame * channels;
         let segment_samples = samples[start_sample..end_sample].to_vec();
-        let segment_wav = wrap_samples(segment_samples.clone(), spec)?;
+        let segment_wav = wrap_samples(segment_samples, spec)?;
         segments.push(segment_wav);
     }
 

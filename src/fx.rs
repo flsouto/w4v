@@ -2,6 +2,9 @@ use rand::rngs::StdRng;
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use crate::{bitcrush, flanger, highpass, lowpass, reverb, reverse, overdrive, speed};
+use wasm_bindgen::prelude::*;
+use js_sys;
+use rand::SeedableRng;
 
 pub fn apply_fx_with_rng(wav:&[u8], rng: &mut StdRng, mut fx: String) -> Result<Vec<u8>,String> {
 
@@ -42,9 +45,36 @@ pub fn apply_fx_with_rng(wav:&[u8], rng: &mut StdRng, mut fx: String) -> Result<
     }
 }
 
+#[wasm_bindgen]
+pub fn apply_fx_js(input_wav: &[u8], seed: u64, fx: String) -> Result<js_sys::Uint8Array, JsValue> {
+    let mut rng = StdRng::seed_from_u64(seed);
+    match apply_fx_with_rng(input_wav, &mut rng, fx) {
+        Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
+        Err(e) => Err(JsValue::from_str(&e)),
+    }
+}
+
+#[wasm_bindgen]
+pub fn apply_rand_fx_js(input_wav: &[u8], seed: u64) -> Result<js_sys::Uint8Array, JsValue> {
+    let mut rng = StdRng::seed_from_u64(seed);
+    match apply_rand_fx_with_rng(input_wav, &mut rng) {
+        Ok(result_vec) => Ok(js_sys::Uint8Array::from(result_vec.as_slice())),
+        Err(e) => Err(JsValue::from_str(&e)),
+    }
+}
+
 pub fn apply_rand_fx_with_rng(wav:&[u8], rng: &mut StdRng) -> Result<Vec<u8>,String> {
     let fx = get_rand_fx(rng);
     apply_fx_with_rng(wav, rng, fx)
+}
+
+#[wasm_bindgen]
+pub fn get_fx_list_js() -> js_sys::Array {
+    let fx_list = ["bitcrush","flanger", "highpass","lowpass", "reverb","reverse"]
+        .into_iter()
+        .map(JsValue::from_str)
+        .collect::<js_sys::Array>();
+    fx_list
 }
 
 pub fn get_fx_list() -> Vec<String>{

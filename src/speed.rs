@@ -4,7 +4,7 @@ use clap::Parser;
 use crate::utils::{get_samples,wrap_samples, clamp_samples};
 
 pub fn speed(input_wav: &[u8], factor: f32) -> Result<Vec<u8>, String> {
-    if factor <= 0.0 {
+    if !factor.is_finite() || factor <= 0.0 {
         return Err("Speed factor must be positive.".to_string());
     }
 

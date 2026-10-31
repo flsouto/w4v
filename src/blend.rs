@@ -5,7 +5,7 @@ use clap::Parser;
 use wasm_bindgen::prelude::*;
 use rand::SeedableRng;
 
-use crate::blenders::{mosaic,delayer,xfade,outbreaker,m4ze,samplicat};
+use crate::blenders::{mosaic,delayer,xfade,outbreaker,m4ze,samplicat,dim};
 use crate::maxgain;
 
 type In<'a> = &'a [&'a [u8]];
@@ -20,13 +20,22 @@ pub fn get_blenders<'a>() -> HashMap<&'a str, BlenderFn<'a>> {
         ("xfade", xfade as BlenderFn),
         ("outbreaker", outbreaker as BlenderFn),
         ("m4ze", m4ze as BlenderFn),
-        ("samplicat", samplicat as BlenderFn)
+        ("samplicat", samplicat as BlenderFn),
+        ("dim", dim as BlenderFn)
     ])
 
 }
 
 pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str, post_fx: Option<&str>) -> Out{
     
+    let required = match blender {
+        "samplicat" => 1,
+        "mosaic" | "delayer" | "xfade" | "m4ze" | "dim" => 2,
+        _ => 3,
+    };
+    if wavs.len() < required {
+        return Err(format!("Blender {} requires {} input WAVs", blender, required));
+    }
     let blenders = get_blenders();
 
     let mut out = Err(format!("Invalid blender provided: {}", blender));

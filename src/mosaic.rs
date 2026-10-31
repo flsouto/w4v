@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
 use crate::utils::{get_samples, wrap_samples};
 use crate::pick;
-use crate::add::add;
+use crate::join;
 use clap::Parser;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -42,9 +42,12 @@ pub fn mosaic_with_rng(
     pattern: &str,
     segment_len: f32,
 ) -> Result<Vec<u8>, String> {
+    if !segment_len.is_finite() || segment_len <= 0.0 {
+        return Err("Segment length must be finite and positive".to_string());
+    }
     let (_samples, spec) = get_samples(input_wav_bytes)?;
     let mut segments: HashMap<char, Vec<u8>> = HashMap::new();
-    let mut result_wav = wrap_samples(vec![], spec)?;
+    let mut output_segments = Vec::with_capacity(pattern.chars().count());
 
     let silent_samples_count = (spec.sample_rate as f32 * segment_len) as usize * spec.channels as usize;
     let silent_samples = vec![0.0; silent_samples_count];
@@ -61,10 +64,13 @@ pub fn mosaic_with_rng(
             }
             segments.get(&c).unwrap().clone()
         };
-        result_wav = add(&result_wav, &segment_to_add)?;
+        output_segments.push(segment_to_add);
     }
 
-    Ok(result_wav)
+    if output_segments.is_empty() {
+        return wrap_samples(vec![], spec);
+    }
+    join(&output_segments)
 }
 
 #[wasm_bindgen]

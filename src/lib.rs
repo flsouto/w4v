@@ -79,3 +79,6 @@ pub use mosaic::mosaic_js;
 pub use mix::mix_js;
 pub use silence::silence_js;
 pub use blend::blend_js;
+pub use fx::get_fx_list_js;
+pub use fx::apply_fx_js;
+pub use fx::apply_rand_fx_js;

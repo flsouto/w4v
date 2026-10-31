@@ -13,3 +13,6 @@ pub use m4ze::m4ze;
 
 pub mod samplicat;
 pub use samplicat::samplicat;
+
+pub mod dim;
+pub use dim::dim;

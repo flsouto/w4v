@@ -5,7 +5,7 @@ use crate::len::len;
 use crate::speed::speed;
 
 pub fn resize(input_wav: &[u8], new_duration: f32) -> Result<Vec<u8>, String> {
-    if new_duration <= 0.0 {
+    if !new_duration.is_finite() || new_duration <= 0.0 {
         return Err("New duration must be positive.".to_string());
     }
 
