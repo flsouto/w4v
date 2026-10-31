@@ -114,7 +114,7 @@ Folders are scanned non-recursively, relative to the current working directory. 
 
 Video excerpts use `--portion 1/4` by default. Set `--portion 1/2` for the first half, `--portion 1` for the whole loop, or a decimal such as `--portion 0.1`. `--cycles` repeats the selected excerpt, and `--seconds` caps the total clip duration. Output identity also includes the selected library batch so a different library is not mistaken for an already-rendered video.
 
-Each successful batch now also creates one `compilation-<batch-id>.mp4` containing all selected clips in selection order, and prints its path as `Final video`. Individual MOV intermediates and thumbnails remain available. The manifest's `compilation` field records the final output and ordered segments. If any selected clip fails, no partial compilation is presented as a complete batch. Joining decodes/re-encodes the clips, resets timestamps, normalizes audio to 48 kHz stereo, and trims/pads each audio segment to its video's frame boundary to prevent timing drift across joins.
+Each successful batch now also creates one `compilation.mp4` containing all selected clips in selection order, and prints its path as `Final video`. Individual MOV intermediates and thumbnails remain available. The manifest's `compilation` field records the final output and ordered segments. If any selected clip fails, no partial compilation is presented as a complete batch. Joining decodes/re-encodes the clips, resets timestamps, normalizes audio to 48 kHz stereo, and trims/pads each audio segment to its video's frame boundary to prevent timing drift across joins.
 
 Use `--show-url` to display `https://daw.looplicator.com` in a compact header badge throughout the footage. This is a website-address overlay in the UI, rather than a simulated browser address bar; rendering still runs locally. The option participates in output identity, so URL-branded clips do not reuse unbranded files.
 
@@ -139,3 +139,42 @@ Encoder settings are part of cache identity. Old AAC intermediate clips and thei
 Only a completed final compilation updates the ledger: failed or interrupted batches do not consume loops. The renderer commits **only** the ledger and runs `git push` automatically afterwards. Unrelated working/staged changes are left alone. Git push requires the current branch's normal remote/upstream and working credentials. A failed push returns an error but keeps the ledger and local commit; the next real run retries Git sync before selecting another batch. This prevents a failed push from causing already-compiled loops to be selected again.
 
 `--list-only` is read-only and does not touch Git or history. `--history /path/to/file.txt` chooses a different ledger. `--no-history-sync` disables automatic Git operations while retaining local history updates (useful for isolated preview/test directories); it does not disable history filtering. To intentionally re-render earlier loops, use a separate history file. The normal default ledger belongs in Git and is not inside ignored `videos/`.
+
+
+### Configured inputs and planning
+
+Copy `.env.example` to `.env` and set a glob, for example:
+
+```dotenv
+VIDEO_INPUT_GLOB="commits/2026-*.wav"
+# Or: VIDEO_INPUT_GLOB="{commits,stash}/**/*.wav"
+```
+
+Patterns support recursive `**`, character classes, and brace alternatives. Relative patterns use the command's working directory. Input precedence is `--glob`, then explicit `--input` folders, then the shell's VIDEO_INPUT_GLOB or repository `.env`, then `commits/`. Only nonempty WAV files are eligible. The same compiled-name ledger and content deduplication apply before selecting the newest N. `.env` is local/ignored; `.env.example` documents the shared configuration. `mkvid` now uses configured inputs, retaining `commits/` as its fallback.
+
+Inspect the queue without rendering, writing history, committing, or pushing:
+
+```sh
+npm run plan:videos -- --last 10 --portion 1/4 --cycles 2
+npm run plan:videos -- --glob 'commits/2026-*.wav' --last 20 --portion 1/2 --json
+# After sourcing aliases: same half-loop default as mkvid
+vidplan 10
+```
+
+The plan reports the total number of remaining unique matching loops, the number selected, how many would remain after success, requested audio duration, and frame-rounded estimated final video duration. It probes only the selected WAV durations, but scans/hashes eligible files to count unique contents. Actual final duration can differ by up to one frame per clip. Invalid selected audio is reported rather than giving a misleading duration.
+
+Every successful render now replaces **`videos/compilation.mp4`** (or `<--output>/compilation.mp4`). It finishes in a temporary file before replacing the old compilation, so a failed render/join leaves the previous final video intact. Individual cached MOV intermediates still have unique names. Old hash-named compilations are left alone. Archive manifests refer to the fixed path, which represents the latest compilation rather than an immutable historical copy.
+
+### Library mutation regression check
+
+`npm run test:library` builds the frontend and tests it in an isolated headless browser with 80 synthetic WAVs. It checks a tempo-adjusted save through the export worker, individual deletion, a favorite edit, and bulk deletion. It asserts zero full-library IndexedDB reads during mutations, stable existing audio elements/preview URLs, and a single transaction for bulk deletion. Requires the generated WASM package and installed Playwright Chromium, as above; the test never touches your normal browser library.
+
+Library edits now update only affected entries in React state. Favorite metadata shares the original preview source, and unchanged rows are memoized. At normal tempo, saving reuses the generated WAV bytes; tempo-adjusted WAV encoding happens in a separate worker. Storage-quota display updates run separately from write completion.
+
+## UI and renderer compatibility gate
+
+Before completing UI/renderer changes, run **`npm run check`**. After the first-time WASM/FFmpeg/Playwright setup, this runs the unit suite plus production, renderer, and library browser checks. `npm run test:renderer` runs the capture gate alone; `npm run test:compat` includes the library checks too. GitHub Actions runs the same gate on code pushes and pull requests (not ledger-only pushes).
+
+The renderer now uses the versioned capture API (`loadBatch`, `showLoop`, `setPresentation`, `renderFrame`) and explicit capture targets. Contract details and change requirements live in [docs/capture-api.md](docs/capture-api.md) and [AGENTS.md](AGENTS.md). The development-only adapter is excluded from production and a build guard rejects accidental exposure. UI and encoding cache fingerprints remain active.
+
+The library also shows import progress while adding each loop, counts filtered versus total loops, and provides brief accessible save/favorite notifications with visual feedback.

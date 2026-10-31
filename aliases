@@ -7,5 +7,11 @@ dum() {
 }
 
 mkvid() {
-    npm run render:videos -- --input commits --portion 1/2 --last $1 --random-ui
+    npm run render:videos -- --portion 1/2 --last "$1" --random-ui "${@:2}"
 }
+
+vidplan() {
+    npm run plan:videos -- --portion 1/2 --last "${1:-1}" "${@:2}"
+}
+
+. farm

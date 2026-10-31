@@ -74,7 +74,7 @@ export function AudioPlayer({ src, name, buffer, rate = 1, autoPlay = false, ren
     <IconButton icon={displayPlaying ? 'pause' : 'play'} label={`${displayPlaying ? 'Pause' : 'Play'} ${name}`} className={`play-button ${displayPlaying ? 'active' : ''}`}  disabled={!src} onClick={toggle}/>
     {waveform && <IconButton icon="stop" label="Stop loop output" onClick={() => { audio.current.pause(); seek(0); }}/>}
   </>;
-  return <div ref={surface} className={waveform ? 'waveform-player' : 'compact-player'}>
+  return <div ref={surface} data-capture={waveform ? 'player' : undefined} className={waveform ? 'waveform-player' : 'compact-player'}>
     <audio ref={audio} src={src} preload={durationHint ? 'none' : 'metadata'} loop={loop} muted={muted}
       onLoadedMetadata={() => setDuration(audio.current.duration)}
       onTimeUpdate={() => setTime(audio.current.currentTime)}
@@ -82,17 +82,17 @@ export function AudioPlayer({ src, name, buffer, rate = 1, autoPlay = false, ren
       onPause={() => setPlaying(false)} onEnded={() => { setPlaying(false); setTime(audio.current.currentTime); }}
       onError={() => onError?.(`Unable to load ${name}`)}/>
     {waveform ? <>
-      <div className="waveform-seek" role="slider" tabIndex={0} aria-label={seekLabel} aria-valuemin={0} aria-valuemax={Number.isFinite(duration) ? duration : 0} aria-valuenow={displayTime} aria-valuetext={`${clock(displayTime / rate)} of ${clock(duration / rate)}`}
+      <div data-capture="timeline" className="waveform-seek" role="slider" tabIndex={0} aria-label={seekLabel} aria-valuemin={0} aria-valuemax={Number.isFinite(duration) ? duration : 0} aria-valuenow={displayTime} aria-valuetext={`${clock(displayTime / rate)} of ${clock(duration / rate)}`}
         onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); const box = event.currentTarget.getBoundingClientRect(); seek((event.clientX - box.left) / box.width * duration); }}
         onPointerMove={event => { if (!event.currentTarget.hasPointerCapture(event.pointerId)) return; const box = event.currentTarget.getBoundingClientRect(); seek((event.clientX - box.left) / box.width * duration); }}
         onKeyDown={event => {
           const targets = { ArrowRight: time + 5 * rate, ArrowLeft: time - 5 * rate, Home: 0, End: duration };
           if (Object.hasOwn(targets, event.key)) { event.preventDefault(); seek(targets[event.key]); }
         }}>
-        <canvas ref={canvas} width="1000" height="160" aria-hidden="true"/>
-        <div className="played-region"/><div className="playhead"/>
+        <canvas data-capture="waveform" ref={canvas} width="1000" height="160" aria-hidden="true"/>
+        <div className="played-region"/><div className="playhead" data-capture="playhead"/>
       </div>
-      <div className="waveform-transport"><div className="transport-buttons">{transport}<IconButton icon="repeat" label="Loop playback" aria-pressed={loop} className={loop ? 'active' : ''} onClick={() => setLoop(!loop)}/></div><span className="playback-time">{clock(displayTime / rate)} <span>/ {clock(duration / rate)}</span></span><IconButton icon={muted ? 'mute' : 'volume'} label={muted ? 'Unmute loop output' : 'Mute loop output'} aria-pressed={muted} onClick={() => setMuted(!muted)}/></div>
+      <div className="waveform-transport"><div className="transport-buttons">{transport}<IconButton icon="repeat" label="Loop playback" aria-pressed={loop} className={loop ? 'active' : ''} onClick={() => setLoop(!loop)}/></div><span className="playback-time" data-capture="clock">{clock(displayTime / rate)} <span>/ {clock(duration / rate)}</span></span><IconButton icon={muted ? 'mute' : 'volume'} label={muted ? 'Unmute loop output' : 'Mute loop output'} aria-pressed={muted} onClick={() => setMuted(!muted)}/></div>
     </> : <>{transport}<input className="audio-seek" aria-label={seekLabel} type="range" min="0" max={Number.isFinite(duration) ? duration : 0} step="0.01" value={time} disabled={!duration} onChange={event => seek(Number(event.target.value))}/><span className="playback-time">{clock(time)} <span>/ {clock(duration)}</span></span></>}
   </div>;
 }

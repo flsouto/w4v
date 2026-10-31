@@ -7,3 +7,6 @@ web/public/w4v_pkg/
 .playwright-mcp/
 web/release-dist/
 videos/
+
+.env
+.env.local

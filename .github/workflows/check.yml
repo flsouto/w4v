@@ -1,0 +1,37 @@
+name: UI and renderer compatibility
+on:
+  push:
+    paths-ignore:
+      - compiled-loops.txt
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Prepare Rust and WebAssembly tools
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add wasm32-unknown-unknown
+          cargo install wasm-pack --locked
+      - name: Install FFmpeg and browser
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          npx playwright install --with-deps chromium --only-shell
+      - name: Build WASM catalog
+        run: npm run build:wasm
+      - name: Unit, production, renderer, and library checks
+        run: npm run check

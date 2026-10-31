@@ -1,6 +1,6 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { FINAL_AUDIO } from './encoding.mjs';
-import { access, rename, unlink } from 'node:fs/promises';
+import { rename, unlink } from 'node:fs/promises';
 
 export async function concatenateClips(records, destination, fps) {
   if (!records.length || records.some(record => !['complete','skipped-existing'].includes(record.status))) throw new Error('A compilation requires every selected clip to complete');
@@ -11,8 +11,6 @@ export async function concatenateClips(records, destination, fps) {
     return { name:record.name, video:record.video, duration };
   });
   const duration = segments.reduce((total,clip)=>total+clip.duration,0);
-  try { await access(destination); return {status:'skipped-existing',video:destination,duration,segments}; }
-  catch(error) { if(error.code!=='ENOENT') throw error; }
   const partial = `${destination}.${process.pid}.partial.mp4`;
   const filters = segments.flatMap((clip,i)=>[
     `[${i}:v]setpts=PTS-STARTPTS[v${i}]`,

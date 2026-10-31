@@ -1,20 +1,24 @@
+import fastGlob from 'fast-glob';
 import { readdir, stat, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { resolve, basename } from 'node:path';
 
 // Top-level directory scan only. Never source/execute .farmrc or modify farm files.
-export async function selectInputs(directories, last, compiled = new Set()) {
+export async function selectInputs(directories, last, compiled = new Set(), pattern) {
   const candidates = [];
-  for (const directory of [...new Set(directories.map(path => resolve(path)))]) {
-    const entries = await readdir(directory, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isFile() || !/\.wav$/i.test(entry.name) || compiled.has(entry.name)) continue;
-      const path = resolve(directory, entry.name);
-      let info;
-      try { info = await stat(path); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
-      if (!info.size) continue;
-      candidates.push({ path, name: basename(path), mtimeMs: info.mtimeMs, size: info.size });
+  let paths = [];
+  if (pattern) paths = await fastGlob(pattern, { absolute:true, onlyFiles:true, unique:true, followSymbolicLinks:false });
+  else for (const directory of [...new Set(directories.map(path => resolve(path)))]) {
+    for (const entry of await readdir(directory, {withFileTypes:true})) {
+      if(entry.isFile()) paths.push(resolve(directory,entry.name));
     }
+  }
+  for (const path of paths) {
+    const name=basename(path);
+    if (!/\.wav$/i.test(name) || compiled.has(name)) continue;
+    let info;
+    try { info=await stat(path); } catch(error) { if(error.code==='ENOENT') continue;throw error; }
+    if(info.isFile() && info.size) candidates.push({path,name,mtimeMs:info.mtimeMs,size:info.size});
   }
   candidates.sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
   const selected = [], hashes = new Set();

@@ -1,3 +1,5 @@
+import { fileFromRecord } from './library-files.js';
+
 const DB_NAME = 'audioSamplerDB'
 const STORE_NAME = 'audioFiles'
 const DB_VERSION = 1
@@ -104,10 +106,7 @@ class StorageService {
         isGenerated: file.isGenerated || metadata.isGenerated || false
       }
 
-      transaction.oncomplete = async () => {
-        await this.updateStorageEstimate()
-        resolve(fileObj)
-      }
+      transaction.oncomplete = () => resolve(fileObj)
 
       transaction.onerror = () => {
         reject(transaction.error)
@@ -133,31 +132,7 @@ class StorageService {
       const request = store.getAll()
 
       request.onsuccess = () => {
-        const files = request.result.map(fileObj => {
-          const file = new File([fileObj.data], fileObj.name, {
-            type: fileObj.type,
-            lastModified: fileObj.lastModified
-          })
-          // Add the ID, isGenerated flag, and favorite flag as non-enumerable properties
-          Object.defineProperties(file, {
-            'id': {
-              value: fileObj.id,
-              writable: false,
-              enumerable: false
-            },
-            'isGenerated': {
-              value: fileObj.isGenerated || fileObj.name.includes('generated-'),
-              writable: false,
-              enumerable: false
-            },
-            'favorite': {
-              value: fileObj.favorite || false,
-              writable: true,
-              enumerable: false
-            }
-          })
-          return file
-        })
+        const files = request.result.map(fileFromRecord)
         resolve(files)
       }
 
@@ -166,30 +141,19 @@ class StorageService {
   }
 
   async deleteFile(fileId) {
-    await this.ensureInitialized()
+    return this.deleteFiles([fileId]);
+  }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([STORE_NAME], 'readwrite')
-      const store = transaction.objectStore(STORE_NAME)
-
-      transaction.oncomplete = async () => {
-        await this.updateStorageEstimate()
-        resolve()
-      }
-
-      transaction.onerror = () => {
-        reject(transaction.error)
-      }
-
-      transaction.onabort = () => {
-        reject(new Error('Transaction was aborted'))
-      }
-
-      const request = store.delete(fileId)
-      request.onerror = () => {
-        reject(request.error)
-      }
-    })
+  async deleteFiles(fileIds) {
+    await this.ensureInitialized();
+    return new Promise((resolve,reject)=>{
+      const transaction=this.db.transaction([STORE_NAME],'readwrite');
+      transaction.oncomplete=()=>resolve();
+      transaction.onerror=()=>reject(transaction.error);
+      transaction.onabort=()=>reject(transaction.error || new Error('Transaction aborted'));
+      const store=transaction.objectStore(STORE_NAME);
+      for (const id of fileIds) store.delete(id);
+    });
   }
 
   async clear() {
