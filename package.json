@@ -11,7 +11,11 @@
     "build": "npm run build:wasm && npm run build --workspace web",
     "preview": "npm run preview --workspace web --",
     "test": "node --test web/tests/*.test.js",
-    "deploy": "bash scripts/deploy.sh"
+    "deploy": "bash scripts/deploy.sh",
+    "render:videos": "node scripts/render-videos.mjs"
   },
-  "version": "3.1.0"
+  "version": "3.1.0",
+  "devDependencies": {
+    "playwright": "^1.64.1"
+  }
 }

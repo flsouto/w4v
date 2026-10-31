@@ -2,6 +2,8 @@
 
 Serverless loop maker: a Rust audio engine and a React browser app in one repository.
 
+See [TODO.md](TODO.md) for the renderer compatibility work to complete before implementing the next features.
+
 - `src/`: Rust engine, native CLI, and WASM exports.
 - `web/`: React/Vite app. IndexedDB holds the sample library locally.
 - `examples/profile_blenders.rs`: repeatable native mixer timing harness.
@@ -79,3 +81,53 @@ To publish a release note, add a JSON file to `web/news/` with `slug`, `title`, 
 Update root and web package versions, refresh the lockfile with `npm install --package-lock-only --ignore-scripts`, run checks, and commit. Then `npm run deploy` builds and uploads both the app and all news files to S3, creates the new app archive, and invalidates CloudFront. Existing release archives remain unchanged. Rebuilds also refresh the news index and discovery files when adding an article. Content changes must use a fresh app version for deployment because published app archives cannot be overwritten.
 
 Recent UI controls include compact players, waveform seeking/playhead, autoplay, eligible random Mixer/FX checkboxes, and output favorites. F generates, S saves, and X saves as a favorite; shortcuts ignore editing controls and modifier keys.
+
+## Videos from your existing farm workflow
+
+Keep using `aliases`, `.farmrc`, and the existing generate/save/repeat commands. The renderer reads completed WAVs from the directories those commands already populate; it does not change the framework, move files, or create a generation manifest inside it. The default input is `commits/` (kept loops). Use `stash/` for a broader pool, or pass both: duplicate audio files are identified by SHA-256 and rendered once.
+
+```sh
+npm ci
+npx playwright install chromium --only-shell
+# FFmpeg and ffprobe must also be installed on your system.
+
+# Check the selection first; this does not launch a browser or write videos.
+npm run render:videos -- --input commits --last 10 --list-only
+
+# Ten newest unique saved loops, each first-quarter excerpt repeated four times, at 1080p / 30 fps.
+npm run render:videos -- --input commits --last 10 --cycles 4
+
+# Include stash as well, with content deduplication across both folders.
+npm run render:videos -- --input commits --input stash --last 10 --cycles 2
+
+# A quick low-frame-rate preview.
+npm run render:videos -- --input commits --last 1 --seconds 2 --fps 6 --size 1280x800
+```
+
+The renderer starts its own loopback-only Vite server and isolated headless browser. `?render=1` provides a development-only bridge into the same app components. Each selected WAV is loaded directly into the output panel, without regeneration, normalization, tempo changes, or browser playback. Every selected loop appears in the capture library, with its original duration; these entries do not preload audio. The waveform playhead and timer are driven by explicit frame timestamps; FFmpeg combines the PNG frame stream with audio from the original WAV, trimmed to its first quarter by default and repeated as requested. The full waveform stays visible, and its playhead traverses only that excerpt. Intermediate MOV clips use H.264 video and uncompressed 32-bit float PCM audio. The final MP4 uses H.264 video and 384 kbps AAC-LC audio at 48 kHz stereo. Only the final step applies lossy audio compression. Audio is encoded from the original, not captured from a sound device. Visual timing is quantized to the chosen frame rate, while the soundtrack is trimmed to the requested duration. Rendering can take longer than playback.
+
+`videos/` receives a MOV intermediate and PNG thumbnail per loop, one final MP4 compilation, and a JSON manifest per batch. Upload the final compilation to YouTube. The manifest records selected file paths, modification times, source content hashes, source/target durations, frame counts, UI fingerprint, app version, settings, encoding profile, and per-loop completion/failure status. Matching existing intermediates are skipped; changed UI source, app version, logo, audio, resolution, frame rate, or duration produces a new filename. Invalid loops are reported individually, and the batch exits unsuccessfully if any fail. A temporary snapshot protects each render from subsequent farm moves/overwrites. Inputs are never modified. Keep the UI source stable until the batch finishes; changed source causes the affected render to be discarded rather than mixing UI versions.
+
+“Last” means **file modification time**, not the exact time you pressed your framework's save command. Moving an old WAV may preserve its original modification time. Hash-named files do not retain mixer/FX provenance, so the capture labels these as CLI output / not recorded instead of guessing. The render manifest describes the video job, not generation history. If exact save-event ordering becomes necessary later, a passive directory observer could record it without changing the framework. This first version deliberately requires no watcher or hooks.
+
+Folders are scanned non-recursively, relative to the current working directory. `.farmrc` is not sourced or executed; use `--input` to choose any custom save folder. `--output` changes the video directory. `--browser-executable /path/to/chromium` uses an existing Chromium installation instead of Playwright's bundled one. Run `npm run render:videos -- --help` for all options. The capture bridge is removed from production builds; none of this launches a browser or adds rendering dependencies when someone visits the online DAW.
+
+Video excerpts use `--portion 1/4` by default. Set `--portion 1/2` for the first half, `--portion 1` for the whole loop, or a decimal such as `--portion 0.1`. `--cycles` repeats the selected excerpt, and `--seconds` caps the total clip duration. Output identity also includes the selected library batch so a different library is not mistaken for an already-rendered video.
+
+Each successful batch now also creates one `compilation-<batch-id>.mp4` containing all selected clips in selection order, and prints its path as `Final video`. Individual MOV intermediates and thumbnails remain available. The manifest's `compilation` field records the final output and ordered segments. If any selected clip fails, no partial compilation is presented as a complete batch. Joining decodes/re-encodes the clips, resets timestamps, normalizes audio to 48 kHz stereo, and trims/pads each audio segment to its video's frame boundary to prevent timing drift across joins.
+
+Use `--show-url` to display `https://daw.looplicator.com` in a compact header badge throughout the footage. This is a website-address overlay in the UI, rather than a simulated browser address bar; rendering still runs locally. The option participates in output identity, so URL-branded clips do not reuse unbranded files.
+
+```sh
+npm run render:videos -- --input commits --last 10 --portion 1/4 --show-url
+```
+
+The capture estimates BPM from the **full source loop** using `round(120 × 16 / durationSeconds)` (minimum 1 BPM). The slider displays this whole-number estimate and expands its bounds in capture mode if needed. This is the requested duration heuristic, not beat detection. It is display-only: playback timestamps and the soundtrack remain at the WAV's original speed even if a quarter excerpt is selected.
+
+`--random-ui` fills the Mixer and FX dropdowns with randomly selected real engine options for each clip. These are visual presentation choices, not inferred generation metadata, and no effects or mixers are applied to the saved audio. Choices and estimated BPM are recorded in the manifest and included in cache identity. This optional flag needs the generated WASM catalog (`npm run build:wasm` if absent). Without it, unknown mixer/FX metadata remains labeled CLI output / not recorded.
+
+```sh
+npm run render:videos -- --input commits --last 10 --show-url --random-ui
+```
+
+Encoder settings are part of cache identity. Old AAC intermediate clips and their compilations are not reused by the PCM/384 kbps pipeline. The individual MOV files are larger; the final upload remains a compact fast-start MP4.

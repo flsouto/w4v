@@ -9,12 +9,14 @@ import { AudioPlayer } from './components/AudioPlayer.jsx';
 import './style.css';
 
 function App() {
+  const renderMode = import.meta.env.DEV && new URLSearchParams(location.search).has('render');
+  const [renderTime, setRenderTime] = useState(renderMode ? 0 : undefined);
   const engine = useRef(null);
   if (!engine.current) engine.current = new Engine();
   const context = useRef(null), operation = useRef(0), savingOutput = useRef(false);
   const [files, setFiles] = useState([]), [filter, setFilter] = useState('all');
   const [catalog, setCatalog] = useState({ blenders: [], effects: [] });
-  const [blender, setBlender] = useState('mosaic'), [effect, setEffect] = useState('');
+  const [blender, setBlender] = useState(renderMode ? '' : 'mosaic'), [effect, setEffect] = useState('');
   const [random, setRandom] = useState(false), [enabled, setEnabled] = useState([]);
   const [randomFx, setRandomFx] = useState(false), [enabledFx, setEnabledFx] = useState([]);
   const [busy, setBusy] = useState(false), [ready, setReady] = useState(false);
@@ -27,7 +29,7 @@ function App() {
   const refresh = async () => { setFiles(await storage.getAllFiles()); setUsage(await storage.getStorageInfo()); };
   useEffect(() => {
     let active = true;
-    Promise.all([engine.current.run('catalog'), storage.getAllFiles(), storage.getStorageInfo()]).then(([{ result }, saved, info]) => {
+    Promise.all([renderMode ? Promise.resolve({ result: { blenders: [], effects: [] } }) : engine.current.run('catalog'), renderMode ? [] : storage.getAllFiles(), renderMode ? null : storage.getStorageInfo()]).then(([{ result }, saved, info]) => {
       if (!active) return;
       setCatalog(result); setEnabled(result.blenders); setEnabledFx(result.effects); setFiles(saved); setUsage(info); setReady(true); setMessage('');
     }).catch(error => active && setMessage(error.message));
@@ -37,6 +39,14 @@ function App() {
     if (!output) return;
     return () => URL.revokeObjectURL(output.url);
   }, [output]);
+  useEffect(() => {
+    if (!import.meta.env.DEV || !renderMode) return;
+    let active = true;
+    import('./render-bridge.js').then(({ createRenderBridge }) => {
+      if (active) window.__looplicatorRender = createRenderBridge({ setOutput, setFiles, setTime: setRenderTime, setBpm, setCatalog, setBlender, setEffect });
+    });
+    return () => { active = false; delete window.__looplicatorRender; };
+  }, [renderMode]);
   const visible = files.filter(file => filter === 'all' || (filter === 'favorite' ? file.favorite : filter === 'generated' ? file.isGenerated : !file.isGenerated));
   const report = task => Promise.resolve().then(task).catch(error => setMessage(error.message));
   async function upload(event) {
@@ -133,18 +143,18 @@ function App() {
     </aside><main><section className="generator-section" aria-label="Generator">
       <div className="controls">
         <div className="selector-group">
-          <div className="mixer-control"><label>Mixer<select aria-label="Mixer" value={blender} disabled={random || busy} onChange={e => setBlender(e.target.value)}>{catalog.blenders.map(name => <option key={name}>{name}</option>)}</select></label><IconButton icon="shuffle" label="Random mixer" aria-pressed={random} aria-expanded={random} aria-controls="mixer-choices" className={random ? 'active' : ''} disabled={busy} onClick={() => setRandom(!random)}/></div>
-          {random && <fieldset id="mixer-choices" className="choice-options" aria-label="Random mixer choices">{catalog.blenders.map(name => <label className="check" key={name}><input type="checkbox" checked={enabled.includes(name)} disabled={busy} onChange={e => setEnabled(e.target.checked ? [...enabled, name] : enabled.filter(n => n !== name))}/>{name}</label>)}</fieldset>}
+          <div className="mixer-control"><label>Mixer<select aria-label="Mixer" value={blender} disabled={renderMode || random || busy} onChange={e => setBlender(e.target.value)}>{renderMode && <option value="">CLI output</option>}{catalog.blenders.map(name => <option key={name}>{name}</option>)}</select></label><IconButton icon="shuffle" label="Random mixer" aria-pressed={random} aria-expanded={random} aria-controls="mixer-choices" className={random ? 'active' : ''} disabled={busy} onClick={() => setRandom(!random)}/></div>
+          {random && <fieldset id="mixer-choices" className="choice-options" aria-label="Random mixer choices">{renderMode && <option value="">CLI output</option>}{catalog.blenders.map(name => <label className="check" key={name}><input type="checkbox" checked={enabled.includes(name)} disabled={busy} onChange={e => setEnabled(e.target.checked ? [...enabled, name] : enabled.filter(n => n !== name))}/>{name}</label>)}</fieldset>}
         </div>
         <div className="selector-group">
-          <div className="mixer-control"><label>FX<select aria-label="FX" value={effect} disabled={randomFx || busy} onChange={e => setEffect(e.target.value)}><option value="">None</option>{catalog.effects.map(name => <option key={name}>{name}</option>)}</select></label><IconButton icon="shuffle" label="Random FX" aria-pressed={randomFx} aria-expanded={randomFx} aria-controls="fx-choices" className={randomFx ? 'active' : ''} disabled={busy} onClick={() => setRandomFx(!randomFx)}/></div>
+          <div className="mixer-control"><label>FX<select aria-label="FX" value={effect} disabled={renderMode || randomFx || busy} onChange={e => setEffect(e.target.value)}><option value="">{renderMode ? 'Not recorded' : 'None'}</option>{catalog.effects.map(name => <option key={name}>{name}</option>)}</select></label><IconButton icon="shuffle" label="Random FX" aria-pressed={randomFx} aria-expanded={randomFx} aria-controls="fx-choices" className={randomFx ? 'active' : ''} disabled={busy} onClick={() => setRandomFx(!randomFx)}/></div>
           {randomFx && <fieldset id="fx-choices" className="choice-options" aria-label="Random FX choices">{catalog.effects.map(name => <label className="check" key={name}><input type="checkbox" checked={enabledFx.includes(name)} disabled={busy} onChange={e => setEnabledFx(e.target.checked ? [...enabledFx, name] : enabledFx.filter(n => n !== name))}/>{name}</label>)}</fieldset>}
         </div>
       </div>
-      <div className="tempo"><div className="tempo-main"><label>Playback tempo · {bpm} BPM<input type="range" min="40" max="200" value={bpm} disabled={locked} onChange={e => setBpm(Number(e.target.value))}/></label><div className="actions tempo-actions"><IconButton icon={locked ? 'lock' : 'unlock'} label="Lock tempo" aria-pressed={locked} className={locked ? 'active' : ''} onClick={() => setLocked(!locked)}/><IconButton icon="shuffle" label="Random BPM" aria-pressed={randomBpm} className={randomBpm ? 'active' : ''} disabled={locked} onClick={() => setRandomBpm(!randomBpm)}/></div></div>{randomBpm && <div className="row">{range.map((value, i) => <label key={i}>{i ? 'Max' : 'Min'}<input type="number" min="40" max="200" value={value} disabled={locked} onChange={e => { const next = [...range]; next[i] = Math.max(40, Math.min(200, Number(e.target.value))); if (next[0] > next[1]) next[1 - i] = next[i]; setRange(next); }}/></label>)}</div>}</div>
+      <div className="tempo"><div className="tempo-main"><label>Playback tempo · {bpm} BPM<input type="range" min={renderMode ? Math.min(40, bpm) : 40} max={renderMode ? Math.max(200, bpm) : 200} value={bpm} disabled={locked} onChange={e => setBpm(Number(e.target.value))}/></label><div className="actions tempo-actions"><IconButton icon={locked ? 'lock' : 'unlock'} label="Lock tempo" aria-pressed={locked} className={locked ? 'active' : ''} onClick={() => setLocked(!locked)}/><IconButton icon="shuffle" label="Random BPM" aria-pressed={randomBpm} className={randomBpm ? 'active' : ''} disabled={locked} onClick={() => setRandomBpm(!randomBpm)}/></div></div>{randomBpm && <div className="row">{range.map((value, i) => <label key={i}>{i ? 'Max' : 'Min'}<input type="number" min="40" max="200" value={value} disabled={locked} onChange={e => { const next = [...range]; next[i] = Math.max(40, Math.min(200, Number(e.target.value))); if (next[0] > next[1]) next[1 - i] = next[i]; setRange(next); }}/></label>)}</div>}</div>
       <div className="row"><IconButton icon="infinity" shortcut="f" label={busy ? 'Generating loop' : 'Generate loop'} className={`primary loop-generator ${busy ? 'processing' : ''}`} disabled={!ready || busy || visible.length < 3} onClick={() => generate()}/>{busy && <IconButton icon="close" label="Cancel processing" onClick={cancel}/>}</div><p role="status" className={message ? 'status' : 'sr-only'}>{message}</p>
     </section><section className="output-section" aria-label="Loop output">{output ? <>
-      <AudioPlayer key={output.url} src={output.url} name="loop output" autoPlay buffer={output.buffer} rate={bpm / 120} onError={setMessage}/>
+      <AudioPlayer key={output.url} src={output.url} name="loop output" autoPlay={!renderMode} renderTime={renderTime} buffer={output.buffer} rate={renderMode ? 1 : bpm / 120} onError={setMessage}/>
       <div className="output-footer"><p className="muted output-name" title={output.name}>{output.name}</p><div className="actions"><IconButton icon="download" label="Download WAV" onClick={() => download(outputFile(), output.name)}/><IconButton icon="save" shortcut="s" label="Save to library" disabled={saving} onClick={() => report(() => save())}/><IconButton icon="star" shortcut="x" label={savedOutput?.favorite ? 'Remove output from favorites' : 'Favorite loop output'} aria-pressed={Boolean(savedOutput?.favorite)} className={savedOutput?.favorite ? 'active favorite' : ''} disabled={saving} onClick={() => report(() => save(!savedOutput?.favorite))}/><IconButton icon="loopFx" label="Apply selected effect" disabled={busy || (!randomFx && !effect)} onClick={() => generate(true)}/></div></div>
     </> : <p className="empty">Your next loop starts with three samples.</p>}</section>
     </main></div>
@@ -152,7 +162,7 @@ function App() {
 }
 function LibraryFile({ file, onDelete, onFavorite, onError }) {
   const [url, setUrl] = useState(undefined);
-  useEffect(() => { const next = URL.createObjectURL(file); setUrl(next); return () => URL.revokeObjectURL(next); }, [file]);
-  return <article><div className="row"><span className="filename" title={file.name}>{file.name}</span><IconButton icon="star" label={file.favorite ? 'Remove favorite' : 'Favorite'} aria-pressed={file.favorite} className={file.favorite ? 'active favorite' : ''} onClick={onFavorite}/><IconButton icon="trash" label={`Delete ${file.name}`} onClick={onDelete}/></div><AudioPlayer key={url || file.id} src={url} name={file.name} onError={onError}/></article>;
+  useEffect(() => { const next = file.previewUrl || URL.createObjectURL(file); setUrl(next); return () => { if (!file.previewUrl) URL.revokeObjectURL(next); }; }, [file]);
+  return <article><div className="row"><span className="filename" title={file.name}>{file.name}</span><IconButton icon="star" label={file.favorite ? 'Remove favorite' : 'Favorite'} aria-pressed={file.favorite} className={file.favorite ? 'active favorite' : ''} onClick={onFavorite}/><IconButton icon="trash" label={`Delete ${file.name}`} onClick={onDelete}/></div><AudioPlayer key={url || file.id} src={url} name={file.name} durationHint={file.duration} onError={onError}/></article>;
 }
 createRoot(document.getElementById('root')).render(<App/>);

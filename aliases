@@ -5,3 +5,7 @@ alias serv='python3 -m http.server '
 dum() {
     w4v $1 tests/data/dummy.wav /tmp/out.wav $2 $3 $4 && play /tmp/out.wav;
 }
+
+mkvid() {
+    npm run render:videos -- --input commits --portion 1/2 --last $1 --random-ui
+}
