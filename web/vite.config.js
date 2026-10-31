@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { buildNews } from '../scripts/build-news.mjs';
 import { cpSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -17,6 +18,7 @@ export default defineConfig({
     configResolved(config) { outputDirectory = resolve(config.root, config.build.outDir); },
     closeBundle() {
       const output = outputDirectory;
+      buildNews(output);
       mkdirSync(resolve(output, 'engine'), { recursive: true });
       cpSync(new URL('./public/w4v_pkg', import.meta.url), resolve(output, 'engine', `v${version}`), { recursive: true });
       cpSync(new URL('./public/looplicator.png', import.meta.url), resolve(output, 'looplicator.png'));

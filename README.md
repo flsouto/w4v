@@ -41,7 +41,7 @@ Imports are normalized to stereo 44.1 kHz PCM WAV. Inputs are limited to 40 MB /
 
 Mosaic previously concatenated by decoding and re-encoding the accumulated output after every pattern character, causing quadratic copying. It now joins the selected segments once. A seeded regression test checks that audio bytes are preserved. The engine still uses encoded WAVs between many effects; a future decoded-PCM representation could remove more conversion overhead. No general PHP/Rust audio parity claim is made.
 
-The UI reports both WASM time and total generation time. Seed fixes the engine randomness for a given ordered input set; sample selection and random mixer choice are separately randomized. Tempo is speed/pitch adjustment relative to an assumed 120 BPM source, not BPM detection or pitch-preserving time stretching.
+Seed fixes the engine randomness for a given ordered input set; sample selection and random mixer choice are separately randomized. Tempo is speed/pitch adjustment relative to an assumed 120 BPM source, not BPM detection or pitch-preserving time stretching.
 
 ## Verification and profiling
 
@@ -52,7 +52,7 @@ npm run build
 cargo run --release --example profile_blenders -- AmenBreak.wav
 ```
 
-The profiling harness runs each of the seven ported mixers with seeds 0–2 using the supplied WAV for all three inputs. Native timing is useful for comparisons, but browser timings are the relevant measure for WASM. The UI provides those timings. For a failing pattern, record the mixer, ordered inputs, seed, effect, and browser, then compare with the PHP reference before changing musical behavior.
+The profiling harness runs each of the seven ported mixers with seeds 0–2 using the supplied WAV for all three inputs. Native timing is useful for comparisons, but browser timings are the relevant measure for WASM. Use browser profiling tools to measure WASM and end-to-end generation time. For a failing pattern, record the mixer, ordered inputs, seed, effect, and browser, then compare with the PHP reference before changing musical behavior.
 
 ## Dim mixer
 
@@ -69,3 +69,13 @@ cargo test compare_fixed_parameters_with_sox -- --ignored --nocapture
 ```
 
 Filter design follows the standard [RBJ biquad equations](https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html); the port's SoX interpretation was checked against the legacy Sampler wrapper and SoX behavior.
+
+## News and release notes
+
+`/news/` and each `/news/<slug>/` article are generated as complete static HTML during the Vite build. They have a small independent stylesheet and do not load React, the DAW bundle, workers, or WASM. The app only adds a News link. Builds also produce `/news/feed.xml`, `/sitemap.xml`, and `/robots.txt`; article pages include canonical URLs and BlogPosting structured data. Archived copies point to the canonical live news URLs.
+
+To publish a release note, add a JSON file to `web/news/` with `slug`, `title`, `date` (YYYY-MM-DD), `version`, `summary`, and `body` (trusted author-written HTML). Use a unique lowercase hyphenated slug. Posts sort by date and then version. Keep earlier post files so the index, feed, and sitemap retain their links. `web/news/style.css` styles the static pages, and `scripts/build-news.mjs` renders them. News source is never imported into the DAW runtime bundle.
+
+Update root and web package versions, refresh the lockfile with `npm install --package-lock-only --ignore-scripts`, run checks, and commit. Then `npm run deploy` builds and uploads both the app and all news files to S3, creates the new app archive, and invalidates CloudFront. Existing release archives remain unchanged. Rebuilds also refresh the news index and discovery files when adding an article. Content changes must use a fresh app version for deployment because published app archives cannot be overwritten.
+
+Recent UI controls include compact players, waveform seeking/playhead, autoplay, eligible random Mixer/FX checkboxes, and output favorites. F generates, S saves, and X saves as a favorite; shortcuts ignore editing controls and modifier keys.
