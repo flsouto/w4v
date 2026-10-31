@@ -57,3 +57,51 @@ test('renderer BPM uses full duration and rounds to a positive whole number', as
   assert.throws(()=>estimateBpm(0));
   assert.equal(parseOptions({'random-ui':true}).randomUi,true);
 });
+
+test('last N selects older eligible loops after excluding compiled names', async () => {
+  const dir=await mkdtemp(join(tmpdir(),'looplicator-history-selection-'));
+  try {
+    for(const [name,time] of [['new.wav',300],['middle.wav',200],['old.wav',100]]) { await writeFile(join(dir,name),name);await utimes(join(dir,name),time,time); }
+    const result=await selectInputs([dir],2,new Set(['new.wav']));
+    assert.deepEqual(result.map(file=>file.name),['middle.wav','old.wav']);
+  } finally {await rm(dir,{recursive:true,force:true});}
+});
+test('history records successful compilations once and rejects failed batches', async () => {
+  const {readHistory,recordCompilation}=await import('../../scripts/video/history.mjs');
+  const dir=await mkdtemp(join(tmpdir(),'looplicator-history-'));const path=join(dir,'compiled.txt');
+  try {
+    assert.equal((await readHistory(path)).size,0);
+    await assert.rejects(recordCompilation(path,[{name:'bad.wav',status:'failed'}],{status:'failed'}));
+    assert.equal((await readHistory(path)).size,0);
+    const records=[{name:'one.wav',status:'complete'},{name:'two.wav',status:'skipped-existing'}];
+    assert.deepEqual(await recordCompilation(path,records,{status:'complete'}),['one.wav','two.wav']);
+    assert.deepEqual(await recordCompilation(path,records,{status:'skipped-existing'}),[]);
+    assert.deepEqual([...(await readHistory(path))],['one.wav','two.wav']);
+  } finally {await rm(dir,{recursive:true,force:true});}
+});
+
+test('history sync commits only the ledger, preserves unrelated staging, and pushes to Git', async () => {
+  const { execFileSync }=await import('node:child_process');
+  const { syncHistory,recordCompilation,readHistory }=await import('../../scripts/video/history.mjs');
+  const dir=await mkdtemp(join(tmpdir(),'looplicator-history-git-'));
+  const repo=join(dir,'repo'),remote=join(dir,'remote.git');
+  const git=(...args)=>execFileSync('git',args,{cwd:repo,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+  try {
+    await mkdir(repo);
+    git('init','-b','master');git('config','user.name','Renderer Test');git('config','user.email','renderer@example.test');
+    execFileSync('git',['init','--bare',remote],{stdio:'ignore'});
+    git('remote','add','origin',remote);
+    const path=join(repo,'compiled-loops.txt');await writeFile(path,'');git('add','.');git('commit','-m','Initial ledger');git('push','-u','origin','master');
+    await writeFile(join(repo,'unrelated.txt'),'keep staged');git('add','unrelated.txt');
+    await recordCompilation(path,[{name:'one.wav',status:'complete'}],{status:'complete'});
+    syncHistory(path);
+    assert.equal(git('show','--pretty=format:','--name-only','HEAD'),'compiled-loops.txt');
+    assert.equal(git('diff','--cached','--name-only'),'unrelated.txt');
+    assert.equal(git('rev-parse','HEAD'),execFileSync('git',['--git-dir',remote,'rev-parse','master'],{encoding:'utf8'}).trim());
+    git('remote','set-url','origin',join(dir,'missing.git'));
+    await recordCompilation(path,[{name:'two.wav',status:'complete'}],{status:'complete'});
+    assert.throws(()=>syncHistory(path));
+    assert.ok((await readHistory(path)).has('two.wav'));
+    assert.equal(git('diff','--cached','--name-only'),'unrelated.txt');
+  } finally {await rm(dir,{recursive:true,force:true});}
+});

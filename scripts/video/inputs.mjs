@@ -3,12 +3,12 @@ import { createHash } from 'node:crypto';
 import { resolve, basename } from 'node:path';
 
 // Top-level directory scan only. Never source/execute .farmrc or modify farm files.
-export async function selectInputs(directories, last) {
+export async function selectInputs(directories, last, compiled = new Set()) {
   const candidates = [];
   for (const directory of [...new Set(directories.map(path => resolve(path)))]) {
     const entries = await readdir(directory, { withFileTypes: true });
     for (const entry of entries) {
-      if (!entry.isFile() || !/\.wav$/i.test(entry.name)) continue;
+      if (!entry.isFile() || !/\.wav$/i.test(entry.name) || compiled.has(entry.name)) continue;
       const path = resolve(directory, entry.name);
       let info;
       try { info = await stat(path); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }

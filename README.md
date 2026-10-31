@@ -131,3 +131,11 @@ npm run render:videos -- --input commits --last 10 --show-url --random-ui
 ```
 
 Encoder settings are part of cache identity. Old AAC intermediate clips and their compilations are not reused by the PCM/384 kbps pipeline. The individual MOV files are larger; the final upload remains a compact fast-start MP4.
+
+### Compilation history
+
+`--last N` now selects the newest N **not-yet-compiled** unique WAVs. The tracked repository file `compiled-loops.txt` contains one filename per line. Matching basenames are excluded across input folders before applying the selection limit. Successful existing local compilation manifests were used to seed this file. The ledger tracks filenames, so intentionally renaming a loop makes it a new candidate.
+
+Only a completed final compilation updates the ledger: failed or interrupted batches do not consume loops. The renderer commits **only** the ledger and runs `git push` automatically afterwards. Unrelated working/staged changes are left alone. Git push requires the current branch's normal remote/upstream and working credentials. A failed push returns an error but keeps the ledger and local commit; the next real run retries Git sync before selecting another batch. This prevents a failed push from causing already-compiled loops to be selected again.
+
+`--list-only` is read-only and does not touch Git or history. `--history /path/to/file.txt` chooses a different ledger. `--no-history-sync` disables automatic Git operations while retaining local history updates (useful for isolated preview/test directories); it does not disable history filtering. To intentionally re-render earlier loops, use a separate history file. The normal default ledger belongs in Git and is not inside ignored `videos/`.

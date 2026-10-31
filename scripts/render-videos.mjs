@@ -6,6 +6,7 @@ import { createHash, randomInt } from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import { tmpdir } from 'node:os';
+import { readHistory, recordCompilation, syncHistory } from './video/history.mjs';
 import { ENCODING_PROFILE, INTERMEDIATE_EXTENSION, INTERMEDIATE_AUDIO } from './video/encoding.mjs';
 import { concatenateClips } from './video/concatenate.mjs';
 import { selectInputs, parseOptions, fingerprintFiles, estimateBpm } from './video/inputs.mjs';
@@ -19,10 +20,10 @@ async function currentUiFingerprint() {
 const { values } = parseArgs({ options: {
   input: { type: 'string', multiple: true }, output: { type: 'string' },
   portion: { type: 'string' }, last: { type: 'string' }, cycles: { type: 'string' }, fps: { type: 'string' }, size: { type: 'string' }, seconds: { type: 'string' },
-  'random-ui': { type: 'boolean' }, 'show-url': { type: 'boolean' }, 'browser-executable': { type: 'string' }, 'list-only': { type: 'boolean' }, help: { type: 'boolean' },
+  history: { type: 'string' }, 'no-history-sync': { type: 'boolean' }, 'random-ui': { type: 'boolean' }, 'show-url': { type: 'boolean' }, 'browser-executable': { type: 'string' }, 'list-only': { type: 'boolean' }, help: { type: 'boolean' },
 } });
 if (values.help) {
-  console.log(`Render existing farm WAVs with the current Looplicator UI. Does not modify inputs.\n\nnpm run render:videos -- --input commits --last 10 --cycles 4\n\n--input DIR                 Repeat to scan several folders (default: commits)\n--last N                    Newest N unique WAVs by mtime (default: 1)\n--portion FRACTION          Beginning of each loop to use (default: 1/4; use 1 for full)\n--cycles N                  Repeat that excerpt N times (default: 1)\n--fps N                     Frame rate, 1–60 (default: 30)\n--size WIDTHxHEIGHT         Even dimensions (default: 1920x1080)\n--seconds N                 Limit each video duration, useful for previews\n--random-ui                 Pick visual-only Mixer/FX selections for each clip\n--show-url                  Show https://daw.looplicator.com in the captured header\n--output DIR                Destination for clips and final compilation (default: videos)\n--list-only                 Print selected WAVs without launching a browser\n--browser-executable PATH   Optional existing Chromium executable\n\nRequires FFmpeg/ffprobe and Chromium: npx playwright install chromium`);
+  console.log(`Render existing farm WAVs with the current Looplicator UI. Does not modify inputs.\n\nnpm run render:videos -- --input commits --last 10 --cycles 4\n\n--input DIR                 Repeat to scan several folders (default: commits)\n--last N                    Newest N not-yet-compiled unique WAVs by mtime (default: 1)\n--portion FRACTION          Beginning of each loop to use (default: 1/4; use 1 for full)\n--cycles N                  Repeat that excerpt N times (default: 1)\n--fps N                     Frame rate, 1–60 (default: 30)\n--size WIDTHxHEIGHT         Even dimensions (default: 1920x1080)\n--seconds N                 Limit each video duration, useful for previews\n--random-ui                 Pick visual-only Mixer/FX selections for each clip\n--show-url                  Show https://daw.looplicator.com in the captured header\n--output DIR                Destination for clips and final compilation (default: videos)\n--history FILE              Compilation ledger (default: repository compiled-loops.txt)\n--no-history-sync           Record locally without automatic Git commit/push\n--list-only                 Print selected WAVs without launching a browser\n--browser-executable PATH   Optional existing Chromium executable\n\nRequires FFmpeg/ffprobe and Chromium: npx playwright install chromium`);
   process.exit(0);
 }
 let server, browser;
@@ -32,8 +33,14 @@ process.on('SIGTERM', () => { interrupted = true; });
 try {
   const settings = parseOptions(values);
   const directories = values.input?.length ? values.input : ['commits'];
-  const inputs = await selectInputs(directories, settings.last);
-  if (!inputs.length) throw new Error('No nonempty WAV files found in the selected directories');
+  const historyPath = resolve(values.history ?? join(root,'compiled-loops.txt'));
+  if (!values['list-only'] && !values['no-history-sync']) syncHistory(historyPath);
+  const compiled = await readHistory(historyPath);
+  const inputs = await selectInputs(directories, settings.last, compiled);
+  if (!inputs.length) {
+    console.log('No uncompiled WAV files found.');
+    process.exit(0);
+  }
   if (values['list-only']) { console.log(JSON.stringify(inputs, null, 2)); process.exit(0); }
   for (const command of ['ffmpeg', 'ffprobe']) execFileSync(command, ['-version'], { stdio: 'ignore' });
   const output = resolve(values.output ?? 'videos');
@@ -42,7 +49,7 @@ try {
   const uiFingerprint = await currentUiFingerprint();
   const libraryFingerprint = createHash('sha256').update(JSON.stringify(inputs.map(file => [file.sha256,file.name]))).digest('hex').slice(0,8);
   const manifestPath = join(output, `render-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
-  const manifest = { version, encodingProfile: ENCODING_PROFILE, uiFingerprint, createdAt: new Date().toISOString(), ordering: 'mtime descending; content SHA-256 deduplication', directories: directories.map(path => resolve(path)), settings, loops: inputs.map(file => ({ ...file, status: 'pending' })) };
+  const manifest = { version, encodingProfile: ENCODING_PROFILE, historyPath, uiFingerprint, createdAt: new Date().toISOString(), ordering: 'mtime descending; content SHA-256 deduplication', directories: directories.map(path => resolve(path)), settings, loops: inputs.map(file => ({ ...file, status: 'pending' })) };
   const saveManifest = () => writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   await saveManifest();
   const { createServer } = await import('vite');
@@ -154,6 +161,20 @@ try {
     }
   } else manifest.compilation = {status:'not-created',reason:'Not all selected clips completed'};
   await saveManifest();
+  if (!failures && !interrupted) {
+    try {
+      const added = await recordCompilation(historyPath, manifest.loops, manifest.compilation);
+      manifest.history = {path:historyPath,added,sync:values['no-history-sync']?'disabled':'pending'};
+      await saveManifest();
+      if (!values['no-history-sync']) { syncHistory(historyPath); manifest.history.sync='pushed'; }
+      console.log(`Recorded ${added.length} compiled loop(s) in ${historyPath}`);
+    } catch(error) {
+      manifest.history ||= {path:historyPath};
+      manifest.history.error=error.message;failures++;
+      console.error(`Compilation history/Git sync failed: ${error.message}. Local history is retained; retry Git sync before rendering another batch.`);
+    }
+    await saveManifest();
+  }
   console.log(`Render manifest: ${manifestPath}`);
   if (failures || interrupted) process.exitCode = 1;
 } catch (error) {
