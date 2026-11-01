@@ -54,7 +54,7 @@ npm run build
 cargo run --release --example profile_blenders -- AmenBreak.wav
 ```
 
-The profiling harness runs each of the seven ported mixers with seeds 0–2 using the supplied WAV for all three inputs. Native timing is useful for comparisons, but browser timings are the relevant measure for WASM. Use browser profiling tools to measure WASM and end-to-end generation time. For a failing pattern, record the mixer, ordered inputs, seed, effect, and browser, then compare with the PHP reference before changing musical behavior.
+The profiling harness runs each of the eight ported mixers with seeds 0–2 using the supplied WAV for all three inputs. Native timing is useful for comparisons, but browser timings are the relevant measure for WASM. Use browser profiling tools to measure WASM and end-to-end generation time. For a failing pattern, record the mixer, ordered inputs, seed, effect, and browser, then compare with the PHP reference before changing musical behavior.
 
 ## Dim mixer
 
@@ -71,6 +71,14 @@ cargo test compare_fixed_parameters_with_sox -- --ignored --nocapture
 ```
 
 Filter design follows the standard [RBJ biquad equations](https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html); the port's SoX interpretation was checked against the legacy Sampler wrapper and SoX behavior.
+
+## Glitch mixer
+
+`glitch` ports `../beatcli/mixers/glitch.php` and is available in both the CLI and the browser mixer catalog after rebuilding WASM. It takes two inputs, keeps their first quarters, and randomly matches their duration to either the first input or their average. Sixteen pieces alternate randomly between the two sources and receive 5 ms logarithmic edge fades. Each piece receives either the cumulative upward pitch shift from the legacy sixteen pitch calls, a 16–99-slice stutter, or half-speed, pitch-preserving stretching cropped to the original piece length. The assembled cycle repeats four times, followed by standard post-FX and normalization.
+
+This is a musical rather than bit-identical port: pitch shifting and stretching use Hann-windowed granular overlap-add with linear interpolation instead of SoX. The sixteen pitch calls are collapsed into a single shift with the same total cents, avoiding repeated DSP and encoding. Stutters retain the exact piece length with a minimum one-frame slice. Seeded choices are repeatable in Rust, but do not reproduce PHP's random sequence. Inputs must have matching rates/channels, finite samples, and at least 64 frames each; the output is capped at 32 million samples (about 128 MB).
+
+Tests cover registration, two-input dispatch, seeded repeatability, duration normalization, identical repeated cycles, pitch/tempo behavior, SoX fade reference values, and invalid inputs. The browser compatibility check also generates a glitch loop through the real WASM worker with reverse FX and verifies the decoded output.
 
 ## News and release notes
 

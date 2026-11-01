@@ -13,7 +13,7 @@ try {
   const context=await browser.newContext(),page=await context.newPage();
   const requests=[];page.on('request',request=>requests.push(request.url()));
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/`);
-  await page.waitForFunction(()=>document.querySelector('select[aria-label="Mixer"]')?.options.length===7);
+  await page.waitForFunction(()=>Array.from(document.querySelector('select[aria-label="Mixer"]')?.options || []).some(option=>option.value==='glitch'));
   await page.evaluate(async()=>{
     const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('audioSamplerDB',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
     const frames=44100,raw=new ArrayBuffer(44+frames*4),view=new DataView(raw);

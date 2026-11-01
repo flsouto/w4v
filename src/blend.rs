@@ -5,7 +5,7 @@ use clap::Parser;
 use wasm_bindgen::prelude::*;
 use rand::SeedableRng;
 
-use crate::blenders::{mosaic,delayer,xfade,outbreaker,m4ze,samplicat,dim};
+use crate::blenders::{mosaic,delayer,xfade,outbreaker,m4ze,samplicat,dim,glitch};
 use crate::maxgain;
 
 type In<'a> = &'a [&'a [u8]];
@@ -21,7 +21,8 @@ pub fn get_blenders<'a>() -> HashMap<&'a str, BlenderFn<'a>> {
         ("outbreaker", outbreaker as BlenderFn),
         ("m4ze", m4ze as BlenderFn),
         ("samplicat", samplicat as BlenderFn),
-        ("dim", dim as BlenderFn)
+        ("dim", dim as BlenderFn),
+        ("glitch", glitch as BlenderFn)
     ])
 
 }
@@ -30,7 +31,7 @@ pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str, post_fx: Option<
     
     let required = match blender {
         "samplicat" => 1,
-        "mosaic" | "delayer" | "xfade" | "m4ze" | "dim" => 2,
+        "mosaic" | "delayer" | "xfade" | "m4ze" | "dim" | "glitch" => 2,
         _ => 3,
     };
     if wavs.len() < required {

@@ -32,7 +32,20 @@ try {
   await capture.loadBatch(fixtures.map(loop=>({...loop,url:`/__compat/${loop.name}`})));
   assert.equal(await page.locator(targets.libraryItem).count(),2);
   assert.deepEqual(await page.locator(targets.libraryName).allTextContents(),['first.wav','second.wav']);
-  const catalog=await capture.getCatalog();assert.ok(catalog.blenders.includes('dim'));assert.ok(catalog.effects.includes('reverse'));
+  const catalog=await capture.getCatalog();assert.ok(catalog.blenders.includes('dim'));assert.ok(catalog.blenders.includes('glitch'));assert.ok(catalog.effects.includes('reverse'));
+  const glitch=await page.evaluate(async()=>{
+    const {Engine}=await import('/src/engine.js');const engine=new Engine();
+    try {
+      const bytes=new Uint8Array(await (await fetch('/__compat/first.wav')).arrayBuffer());
+      const start=performance.now();
+      const {result}=await engine.run('blend',{wavs:[bytes,bytes,bytes],seed:'42',blender:'glitch',effect:'reverse'});
+      const audio=new AudioContext();
+      try {const buffer=await audio.decodeAudioData(result.buffer.slice(result.byteOffset,result.byteOffset+result.byteLength));return {duration:buffer.duration,channels:buffer.numberOfChannels,elapsed:performance.now()-start,peak:buffer.getChannelData(0).reduce((p,s)=>Math.max(p,Math.abs(s)),0)};}
+      finally {await audio.close();}
+    } finally {engine.cancel();}
+  });
+  assert.ok(Math.abs(glitch.duration-16)<.01);assert.equal(glitch.channels,2);assert.ok(glitch.peak>.1);assert.ok(glitch.elapsed<60000);
+  console.log(`Glitch WASM worker: ${glitch.elapsed.toFixed(0)} ms, ${glitch.duration}s stereo, reverse FX`);
   for(const loop of fixtures) {
     await capture.setPresentation({showUrl:true,bpm:loop.bpm,mixer:'dim',fx:'reverse'});
     await capture.showLoop({id:loop.id,excerptSeconds:loop.duration/4});await capture.assertFits();
@@ -69,7 +82,8 @@ try {
   for(const name of await readdir(join(root,'web/dist/assets')))if(name.endsWith('.js'))assert.doesNotMatch(await readFile(join(root,'web/dist/assets',name),'utf8'),/__looplicatorCapture|__looplicatorRender|render-bridge/);
   production=await preview({root:join(root,'web'),configFile:join(root,'web/vite.config.js'),logLevel:'error',preview:{host:'127.0.0.1',port:30000+Math.floor(Math.random()*1000),strictPort:false}});
   browser=await chromium.launch({headless:true});const live=await browser.newPage();await live.goto(`http://127.0.0.1:${production.httpServer.address().port}/?render=1`);
-  await live.waitForFunction(()=>document.querySelector('[data-capture="mixer"]')?.options.length===7);
+  await live.waitForFunction(expected=>document.querySelector('[data-capture="mixer"]')?.options.length===expected,catalog.blenders.length);
+  assert.deepEqual(await live.locator(`${targets.mixer} option`).allTextContents(),catalog.blenders);
   assert.equal(await live.evaluate(()=>typeof window.__looplicatorCapture),'undefined');
   console.log('Renderer compatibility passed: v1 API, two loops, UI targets, waveform, rounded BPM, selections, playhead/excerpt wrap, real compilation A/V timing, and production isolation.');
 } finally {

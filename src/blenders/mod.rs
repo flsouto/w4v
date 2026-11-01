@@ -16,3 +16,6 @@ pub use samplicat::samplicat;
 
 pub mod dim;
 pub use dim::dim;
+
+pub mod glitch;
+pub use glitch::glitch;
