@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { IconButton } from './Icon.jsx';
+import { waveformPeaks } from '../waveform.js';
 
 const clock = seconds => {
   const value = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
@@ -48,13 +49,12 @@ export function AudioPlayer({ src, name, buffer, rate = 1, autoPlay = false, ren
   }, [playing, time, renderTime, buffer]);
   useEffect(() => {
     if (!buffer || !canvas.current) return;
-    const el = canvas.current, ctx = el.getContext('2d'), samples = buffer.getChannelData(0);
+    const el = canvas.current, ctx = el.getContext('2d');
     ctx.clearRect(0, 0, el.width, el.height);
     ctx.fillStyle = '#7fe0be';
-    const step = Math.max(1, Math.ceil(samples.length / el.width));
-    for (let x = 0; x < el.width; x++) {
-      let peak = 0;
-      for (let i = x * step; i < Math.min(samples.length, (x + 1) * step); i++) peak = Math.max(peak, Math.abs(samples[i]));
+    const peaks = waveformPeaks(buffer, el.width);
+    for (let x = 0; x < peaks.length; x++) {
+      const peak = peaks[x];
       ctx.fillRect(x, (1 - peak) * el.height / 2, 1, Math.max(1, peak * el.height));
     }
   }, [buffer]);

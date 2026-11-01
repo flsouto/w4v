@@ -16,7 +16,7 @@ let server,production,browser;
 function wav(seconds,frequency) {
   const rate=8000,frames=seconds*rate,bytes=Buffer.alloc(44+frames*4);
   bytes.write('RIFF',0);bytes.writeUInt32LE(bytes.length-8,4);bytes.write('WAVEfmt ',8);bytes.writeUInt32LE(16,16);bytes.writeUInt16LE(1,20);bytes.writeUInt16LE(2,22);bytes.writeUInt32LE(rate,24);bytes.writeUInt32LE(rate*4,28);bytes.writeUInt16LE(4,32);bytes.writeUInt16LE(16,34);bytes.write('data',36);bytes.writeUInt32LE(frames*4,40);
-  for(let i=0;i<frames;i++){bytes.writeInt16LE(Math.round(Math.sin(2*Math.PI*frequency*i/rate)*9000),44+i*4);bytes.writeInt16LE(Math.round(Math.sin(2*Math.PI*(frequency+110)*i/rate)*7000),46+i*4);}
+  for(let i=0;i<frames;i++){bytes.writeInt16LE(i<rate/2 ? 0 : Math.round(Math.sin(2*Math.PI*frequency*i/rate)*9000),44+i*4);bytes.writeInt16LE(Math.round(Math.sin(2*Math.PI*(frequency+110)*i/rate)*7000),46+i*4);}
   return bytes;
 }
 try {
@@ -53,6 +53,13 @@ try {
     assert.equal(Number(await page.locator(targets.tempo).inputValue()),loop.bpm);
     assert.equal(await page.locator('[data-capture="address"]').innerText(),'https://daw.looplicator.com');
     const colored=await page.locator(targets.waveform).evaluate(canvas=>{const data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let count=0;for(let i=3;i<data.length;i+=4)if(data[i])count++;return count;});assert.ok(colored>1000,'Waveform must be drawn from loaded audio');
+    // Fixtures delay only the left channel, like dim. The right-channel onset
+    // must still produce a visible waveform, rather than a one-pixel baseline.
+    const onset=await page.locator(targets.waveform).evaluate(canvas=>{
+      const data=canvas.getContext('2d').getImageData(1,0,1,canvas.height).data;
+      let height=0;for(let i=3;i<data.length;i+=4)if(data[i])height++;return height;
+    });
+    assert.ok(onset>10,'Audible right-channel onset must be visible while the left is silent');
     await capture.renderFrame(1.25);
     assert.ok(Math.abs(Number(await page.locator(targets.timeline).getAttribute('aria-valuenow'))-1.25)<.001);
     assert.match(await page.locator(targets.clock).innerText(),/0:01/);
