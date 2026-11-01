@@ -73,6 +73,79 @@ pub fn normalize_speed(wav1:&[u8], wav2:&[u8]) -> Result<(Vec<u8>,Vec<u8>,f32), 
     Ok((o1, o2, avg_len))
 }
 
+/// Align selected CLI inputs without modifying sources or changing playback speed.
+/// Target 44.1 kHz stereo; compatible inputs retain their exact bytes.
+/// Mono is duplicated to stereo; other channel remaps are rejected.
+pub fn normalize_blend_inputs(wavs: &mut [Vec<u8>]) -> Result<(), String> {
+    let target = WavSpec { sample_rate: 44100, channels: 2,
+        bits_per_sample: 32, sample_format: SampleFormat::Float };
+    for (index, wav) in wavs.iter_mut().enumerate() {
+        let source = WavReader::new(Cursor::new(wav.as_slice()))
+            .map_err(|e| format!("Invalid input WAV {}: {e}", index + 1))?.spec();
+        if source.sample_rate == target.sample_rate && source.channels == target.channels {
+            continue;
+        }
+        if source.sample_rate == 0 || source.channels == 0 {
+            return Err(format!("Input WAV {} has an invalid rate or channel count", index + 1));
+        }
+        if source.channels != target.channels && (source.channels > 2 || target.channels > 2) {
+            return Err(format!("Cannot convert input WAV {} from {} to stereo; only mono/stereo inputs are supported", index + 1, source.channels));
+        }
+        let (samples, _) = get_samples(wav)?;
+        let channels = source.channels as usize;
+        if samples.len() % channels != 0 {
+            return Err(format!("Input WAV {} contains an incomplete audio frame", index + 1));
+        }
+        let frames = samples.len() / channels;
+        let output_frames = (frames as u64 * target.sample_rate as u64 + source.sample_rate as u64 / 2)
+            / source.sample_rate as u64;
+        let output_len = usize::try_from(output_frames).ok()
+            .and_then(|n| n.checked_mul(target.channels as usize))
+            .filter(|&n| n <= 32_000_000)
+            .ok_or("Converted input exceeds the 128 MB processing limit; use shorter inputs")?;
+        let mut output = Vec::with_capacity(output_len);
+        for i in 0..output_frames as usize {
+            let position = i as f64 * source.sample_rate as f64 / target.sample_rate as f64;
+            let left = (position.floor() as usize).min(frames - 1);
+            let right = (left + 1).min(frames - 1);
+            let fraction = position.fract() as f32;
+            let at = |frame: usize, ch: usize| {
+                samples[frame * channels + if channels == 1 { 0 } else { ch }]
+            };
+            for ch in 0..target.channels as usize {
+                output.push(at(left, ch) * (1.0 - fraction) + at(right, ch) * fraction);
+            }
+        }
+        let spec = WavSpec { sample_rate: target.sample_rate, channels: target.channels,
+            bits_per_sample: 32, sample_format: SampleFormat::Float };
+        *wav = wrap_samples(output, spec)?;
+    }
+    Ok(())
+}
+
+/// CLI export format, applied after all mixer processing, post-FX and gain.
+pub fn finalize_blend_output(wav: Vec<u8>) -> Result<Vec<u8>, String> {
+    let mut wavs = [wav];
+    normalize_blend_inputs(&mut wavs)?;
+    let (samples, mut spec) = get_samples(&wavs[0])?;
+    spec.bits_per_sample = 16;
+    spec.sample_format = SampleFormat::Int;
+    let mut cursor = Cursor::new(Vec::new());
+    {
+        let mut writer = hound::WavWriter::new(&mut cursor, spec)
+            .map_err(|e| format!("Failed to create PCM WAV: {e}"))?;
+        for sample in samples {
+            if !sample.is_finite() {
+                return Err("Cannot export non-finite audio samples".into());
+            }
+            writer.write_sample((sample.clamp(-1.0, 1.0) * i16::MAX as f32).round() as i16)
+                .map_err(|e| format!("Failed to write PCM sample: {e}"))?;
+        }
+        writer.finalize().map_err(|e| format!("Failed to finalize PCM WAV: {e}"))?;
+    }
+    Ok(cursor.into_inner())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -45,6 +45,8 @@ Mosaic previously concatenated by decoding and re-encoding the accumulated outpu
 
 Seed fixes the engine randomness for a given ordered input set; sample selection and random mixer choice are separately randomized. Tempo is speed/pitch adjustment relative to an assumed 120 BPM source, not BPM detection or pitch-preserving time stretching.
 
+CLI `blend` automatically converts selected WAVs to 44.1 kHz stereo before running any mixer, including `rand`. Conversion preserves duration and pitch, uses linear interpolation (as elsewhere in this engine), duplicates mono into stereo, and leaves source files untouched. Already compatible inputs retain their exact bytes. Other channel layouts are rejected; converted inputs are capped at 32 million samples (about 128 MB). After mixing, post-FX, and normalization, every successful CLI blend is exported as **44.1 kHz stereo, 16-bit PCM WAV**, matching the browser export format. This prevents intermittent sample-rate/channel mismatch failures when mixing files from different sources. Browser imports already normalize their format separately.
+
 ## Verification and profiling
 
 ```sh
