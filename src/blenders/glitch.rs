@@ -208,6 +208,40 @@ mod tests {
     }
 
     #[test]
+    fn final_level_is_three_db_lower_after_normalization_and_fx() {
+        let a = input(8000, 2);
+        for fx in [None, Some("reverse")] {
+            let mut rng = StdRng::seed_from_u64(42);
+            let raw = glitch(&[&a, &a], &mut rng).unwrap();
+            let processed = match fx {
+                Some(name) => crate::fx::apply_fx_with_rng(&raw, &mut rng, name.into()).unwrap(),
+                None => raw,
+            };
+            let (expected, spec) = get_samples(&crate::maxgain(&processed).unwrap()).unwrap();
+            let result =
+                crate::blend::blend(&[&a, &a], &mut StdRng::seed_from_u64(42), "glitch", fx)
+                    .unwrap();
+            let (actual, actual_spec) = get_samples(&result).unwrap();
+            assert_eq!(actual_spec, spec);
+            assert_eq!(actual.len(), expected.len());
+            let trim = 10.0_f32.powf(-3.0 / 20.0);
+            assert!(
+                actual
+                    .iter()
+                    .zip(expected)
+                    .all(|(a, b)| (*a - b * trim).abs() < 1e-6)
+            );
+            let peak = actual.iter().fold(0.0_f32, |p, s| p.max(s.abs()));
+            assert!((peak - trim).abs() < 1e-6);
+        }
+        let raw = crate::blenders::xfade(&[&a, &a], &mut StdRng::seed_from_u64(42)).unwrap();
+        assert_eq!(
+            crate::blend::blend(&[&a, &a], &mut StdRng::seed_from_u64(42), "xfade", None).unwrap(),
+            crate::maxgain(&raw).unwrap()
+        );
+    }
+
+    #[test]
     fn rejects_missing_empty_and_mismatched_inputs() {
         let a = input(8000, 1);
         let b = input(8000, 2);

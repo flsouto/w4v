@@ -39,24 +39,30 @@ pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str, post_fx: Option<
     }
     let blenders = get_blenders();
 
-    let mut out = Err(format!("Invalid blender provided: {}", blender));
-    
-    if let Some(&func) = blenders.get(blender) {
-        out = func(wavs, rng);
-    }
-
-    if blender == "rand" {
-        let fname = blenders.keys().choose(rng).unwrap();
+    let blender = if blender == "rand" {
+        let &fname = blenders.keys().choose(rng).unwrap();
         println!("Rand blender resolved to '{}'", fname);
-        let &func = blenders.get(fname).unwrap();
-        out = func(wavs, rng);
-    }
+        fname
+    } else { blender };
+    let func = blenders.get(blender)
+        .ok_or_else(|| format!("Invalid blender provided: {}", blender))?;
+    let mut out = func(wavs, rng);
 
     if let Some(fx) = post_fx {
         out = crate::fx::apply_fx_with_rng(&out?, rng, fx.to_string());
     }
 
-    maxgain(&out?)
+    let out = maxgain(&out?)?;
+    if blender == "glitch" {
+        // Trim after normalization and FX so maxgain cannot undo the reduction.
+        // Avoid gain(), whose tanh soft clipping would also reshape the audio.
+        let (mut samples, spec) = crate::utils::get_samples(&out)?;
+        let trim = 10.0_f32.powf(-3.0 / 20.0);
+        for sample in &mut samples { *sample *= trim; }
+        crate::utils::wrap_samples(samples, spec)
+    } else {
+        Ok(out)
+    }
 
 }
 
