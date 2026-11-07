@@ -13,6 +13,30 @@ export default defineConfig({
   // This leaves legacy /w4v_pkg and /assets dependencies intact on the host.
   build: { copyPublicDir: false },
   plugins: [{
+    name: 'news-in-development',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const url = new URL(request.url, 'http://localhost');
+        const path = url.pathname;
+        if (!(path === '/news' || path.startsWith('/news/') || ['/sitemap.xml', '/robots.txt'].includes(path))) return next();
+        if (!['GET', 'HEAD'].includes(request.method)) { response.statusCode = 405; response.setHeader('Allow', 'GET, HEAD'); return response.end(); }
+        try {
+          const files = buildNews(null, { includeDrafts: true });
+          const key = path.slice(1);
+          response.setHeader('Cache-Control', 'no-store');
+          if (!path.endsWith('/') && files.has(`${key}/index.html`)) {
+            response.statusCode = 302; response.setHeader('Location', `${path}/${url.search}`); return response.end();
+          }
+          const file = path.endsWith('/') ? `${key}index.html` : key;
+          const content = files.get(file);
+          response.setHeader('Content-Type', file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.xml') ? 'application/xml; charset=utf-8' : file.endsWith('.txt') ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8');
+          if (content === undefined) { response.statusCode = 404; return response.end('News page not found'); }
+          response.end(request.method === 'HEAD' ? undefined : content);
+        } catch (error) { next(error); }
+      });
+    },
+  }, {
     name:'static-wasm-in-development',
     apply:'serve',
     configureServer(server) {

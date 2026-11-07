@@ -16,10 +16,10 @@
     "plan:videos": "node scripts/plan-videos.mjs",
     "test:library": "npm run build --workspace web && node scripts/check-library.mjs",
     "test:renderer": "npm run build --workspace web && node scripts/check-renderer.mjs",
-    "test:compat": "npm run test:renderer && node scripts/check-library.mjs && node scripts/check-store.mjs && node scripts/check-support.mjs",
+    "test:compat": "npm run test:renderer && node scripts/check-library.mjs && node scripts/check-store.mjs && node scripts/check-support.mjs && node scripts/check-news.mjs",
     "check": "npm test && npm run test:compat"
   },
-  "version": "3.2.0",
+  "version": "3.3.0",
   "devDependencies": {
     "fast-glob": "^3.3.3",
     "playwright": "^1.64.1"
