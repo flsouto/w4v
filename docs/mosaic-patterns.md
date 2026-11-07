@@ -16,6 +16,10 @@ Custom sequences and exclusions are saved in localStorage under
 `looplicator.mosaic-patterns.v1`. New custom sequences are enabled immediately.
 The selection toggle enables all patterns or clears the selection. Preview pattern
 generates a mosaic from the entered sequence without saving it, even with an
-empty selection or random mixer enabled. Normal mosaic generation requires at
+empty selection or random mixer enabled. Preview skips extra FX so the waveform
+can label each letter and silence step accurately across the four repetitions.
+All mosaic generations show the actual engine-selected pattern on the waveform.
+Tempo changes keep the labels aligned. Reverse FX reverses the label order,
+and other FX retain the labels. Generating with another mixer clears them. Normal mosaic generation requires at
 least one enabled sequence.
 The native CLI continues to use the complete bundled pool.

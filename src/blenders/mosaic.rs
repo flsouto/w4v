@@ -10,6 +10,10 @@ pub fn mosaic(wavs: &[&[u8]], rng: &mut StdRng) -> Result<Vec<u8>, String>{
 }
 
 pub fn mosaic_with_patterns(wavs: &[&[u8]], rng: &mut StdRng, patterns: Option<&[String]>) -> Result<Vec<u8>, String> {
+    mosaic_with_pattern_details(wavs, rng, patterns).map(|(audio, _)| audio)
+}
+
+pub fn mosaic_with_pattern_details(wavs: &[&[u8]], rng: &mut StdRng, patterns: Option<&[String]>) -> Result<(Vec<u8>, String), String> {
     let mut w1 = pick( wavs[0], rng, "1/16")?;
     let mut w2 = pick( wavs[1], rng, "1/16")?;
 
@@ -31,7 +35,7 @@ pub fn mosaic_with_patterns(wavs: &[&[u8]], rng: &mut StdRng, patterns: Option<&
     // todo randomize params
     o = reverb(&o, rng.gen_range(80..=180), rng.gen_range(0.3..=0.8))?;
 
-    x(&o, 4)
+    Ok((x(&o, 4)?, pat))
 
 }
 

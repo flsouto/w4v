@@ -70,9 +70,22 @@ try {
   await page.getByRole('button', {name:'Generate loop', exact:true}).waitFor();
   const previewResult = await page.evaluate(() => ({ requests: window.previewRequests.map(p => ({blender:p.blender, patterns:p.patterns})), settings: JSON.parse(localStorage.getItem('looplicator.mosaic-patterns.v1')) }));
   assert.deepEqual(previewResult.requests, [{blender:'mosaic', patterns:['q_q_']}]);
+  assert.equal(await page.locator('.pattern-marker').count(), 16);
+  assert.equal(await page.locator('.pattern-markers').innerText(), 'q\n_\nq\n_\nq\n_\nq\n_\nq\n_\nq\n_\nq\n_\nq\n_');
+  const markerPositions = await page.locator('.pattern-marker').evaluateAll(markers => markers.map(marker => parseFloat(marker.style.left)));
+  assert.deepEqual(markerPositions, Array.from({length:16}, (_, index) => index * 100 / 16));
   assert.deepEqual(previewResult.settings.custom, []);
   assert.match(await patternPanel.locator('summary').innerText(), /0 \/ 430/);
   await page.getByRole('button', {name:'Random mixer', exact:true}).click();
+  await patternPanel.getByRole('checkbox', {name:'abcb', exact:true}).check();
+  await page.getByLabel('FX', {exact:true}).selectOption('reverse');
+  const previewSource = await page.locator('.waveform-player audio').getAttribute('src');
+  await page.getByRole('button', {name:'Generate loop', exact:true}).click();
+  await page.waitForFunction(previous => document.querySelector('.waveform-player audio')?.getAttribute('src') !== previous, previewSource);
+  assert.equal(await page.locator('.pattern-markers').getAttribute('aria-label'), 'Mosaic pattern: bcba, repeated four times');
+  await page.getByRole('button', {name:'Apply selected effect', exact:true}).click();
+  await page.waitForFunction(() => document.querySelector('.pattern-markers')?.getAttribute('aria-label') === 'Mosaic pattern: abcb, repeated four times');
+  await page.getByLabel('FX', {exact:true}).selectOption('');
   await patternPanel.getByRole('button', {name:'Select all', exact:true}).click();
   await patternPanel.locator('summary').click();
   await page.evaluate(()=>{
@@ -83,6 +96,7 @@ try {
   await page.getByLabel('Mixer',{exact:true}).selectOption('samplicat');
   await page.getByRole('button',{name:'Generate loop',exact:true}).click();
   await page.waitForFunction(() => document.querySelector('.output-name')?.textContent.startsWith('generated-samplicat-'));
+  assert.equal(await page.locator('.pattern-markers').count(), 0, 'Other mixers clear mosaic annotations');
   await page.locator('.tempo input[type=range]').fill('160');
   await page.getByRole('button',{name:'Save to library',exact:true}).click();
   await page.waitForFunction(()=>document.querySelectorAll('article').length===81);

@@ -33,6 +33,10 @@ pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str, post_fx: Option<
 }
 
 pub fn blend_with_patterns(wavs: In<'_>, rng: &mut StdRng, blender: &str, post_fx: Option<&str>, patterns: Option<&[String]>) -> Out {
+    blend_with_details(wavs, rng, blender, post_fx, patterns).map(|(audio, _)| audio)
+}
+
+fn blend_with_details(wavs: In<'_>, rng: &mut StdRng, blender: &str, post_fx: Option<&str>, patterns: Option<&[String]>) -> Result<(Vec<u8>, Option<String>), String> {
     if let Some(pool) = patterns {
         if pool.is_empty() || pool.iter().any(|p| p.is_empty() || p.len() > 256 || !p.bytes().all(|c| c.is_ascii_lowercase() || c == b'_') || !p.bytes().any(|c| c.is_ascii_lowercase())) {
             return Err("Patterns must contain 1–256 lowercase letters or underscores and at least one letter".into());
@@ -55,11 +59,18 @@ pub fn blend_with_patterns(wavs: In<'_>, rng: &mut StdRng, blender: &str, post_f
     } else { blender };
     let func = blenders.get(blender)
         .ok_or_else(|| format!("Invalid blender provided: {}", blender))?;
+    let mut pattern = None;
     let mut out = if blender == "mosaic" {
-        crate::blenders::mosaic::mosaic_with_patterns(wavs, rng, patterns)
+        crate::blenders::mosaic::mosaic_with_pattern_details(wavs, rng, patterns).map(|(audio, selected)| {
+            pattern = Some(selected);
+            audio
+        })
     } else { func(wavs, rng) };
 
     if let Some(fx) = post_fx {
+        if fx.split(',').filter(|fx| *fx == "reverse").count() % 2 == 1 {
+            pattern = pattern.map(|value| value.chars().rev().collect());
+        }
         out = crate::fx::apply_fx_with_rng(&out?, rng, fx.to_string());
     }
 
@@ -70,9 +81,9 @@ pub fn blend_with_patterns(wavs: In<'_>, rng: &mut StdRng, blender: &str, post_f
         let (mut samples, spec) = crate::utils::get_samples(&out)?;
         let trim = 10.0_f32.powf(-3.0 / 20.0);
         for sample in &mut samples { *sample *= trim; }
-        crate::utils::wrap_samples(samples, spec)
+        Ok((crate::utils::wrap_samples(samples, spec)?, pattern))
     } else {
-        Ok(out)
+        Ok((out, pattern))
     }
 
 }
@@ -111,8 +122,35 @@ pub fn blend_js(wav1: Vec<u8>, wav2: Vec<u8>, wav3: Vec<u8>, seed: u64, blender:
     let pool = patterns.map(|value| value.lines().map(String::from).collect::<Vec<_>>());
     let blended_wav_bytes = blend_with_patterns(&wavs, &mut rng, blender, post_fx.as_deref(), pool.as_deref())?;
 
+    encode_blend_pcm(&blended_wav_bytes)
+}
+
+#[wasm_bindgen]
+pub struct BlendDetails {
+    audio: Vec<u8>,
+    pattern: Option<String>,
+}
+
+#[wasm_bindgen]
+impl BlendDetails {
+    #[wasm_bindgen(getter)]
+    pub fn audio(&self) -> Vec<u8> { self.audio.clone() }
+    #[wasm_bindgen(getter)]
+    pub fn pattern(&self) -> Option<String> { self.pattern.clone() }
+}
+
+#[wasm_bindgen]
+pub fn blend_with_details_js(wav1: Vec<u8>, wav2: Vec<u8>, wav3: Vec<u8>, seed: u64, blender: &str, post_fx: Option<String>, patterns: Option<String>) -> Result<BlendDetails, String> {
+    let mut rng = StdRng::seed_from_u64(seed);
+    let wavs = [wav1.as_slice(), wav2.as_slice(), wav3.as_slice()];
+    let pool = patterns.map(|value| value.lines().map(String::from).collect::<Vec<_>>());
+    let (audio, pattern) = blend_with_details(&wavs, &mut rng, blender, post_fx.as_deref(), pool.as_deref())?;
+    Ok(BlendDetails { audio: encode_blend_pcm(&audio)?, pattern })
+}
+
+fn encode_blend_pcm(blended_wav_bytes: &[u8]) -> Result<Vec<u8>, String> {
     // Re-encode to 16-bit
-    let mut reader = WavReader::new(Cursor::new(&blended_wav_bytes))
+    let mut reader = WavReader::new(Cursor::new(blended_wav_bytes))
         .map_err(|e| format!("Failed to create WAV reader: {}", e))?;
     let spec = reader.spec();
 
@@ -133,4 +171,20 @@ pub fn blend_js(wav1: Vec<u8>, wav2: Vec<u8>, wav3: Vec<u8>, seed: u64, blender:
     } // writer is dropped here
 
     Ok(writer_buffer.into_inner())
+}
+
+#[cfg(test)]
+mod mosaic_metadata_tests {
+    use super::*;
+    #[test]
+    fn metadata_matches_the_seeded_audio_and_reverses_with_fx() {
+        let input = crate::utils::get_dummy();
+        let wavs = [&input[..], &input[..]];
+        let pool = vec!["abcb".to_string(), "d_a_".to_string()];
+        let (audio, pattern) = blend_with_details(&wavs, &mut StdRng::seed_from_u64(42), "mosaic", None, Some(&pool)).unwrap();
+        assert!(pool.contains(&pattern.clone().unwrap()));
+        assert_eq!(audio, blend_with_patterns(&wavs, &mut StdRng::seed_from_u64(42), "mosaic", None, Some(&pool)).unwrap());
+        let (_, reversed) = blend_with_details(&wavs, &mut StdRng::seed_from_u64(42), "mosaic", Some("reverse"), Some(&pool)).unwrap();
+        assert_eq!(reversed, pattern.map(|p| p.chars().rev().collect()));
+    }
 }

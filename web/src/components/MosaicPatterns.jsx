@@ -34,7 +34,7 @@ export function MosaicPatterns({ patterns, settings, onChange, onPreview, previe
     onPreview(pattern);
   }
   return <details className="mosaic-patterns"><summary>Mosaic patterns · {selected.length} / {patterns.length} selected</summary>
-    <p className="muted">Each letter repeats a sample slice; _ adds silence. One selected pattern is picked per mosaic.</p>
+    <p className="muted">Each letter repeats a sample slice; _ adds silence. One selected pattern is picked per mosaic. Preview shows the steps on the waveform and skips extra FX.</p>
     <fieldset disabled={disabled}>
       <div className="actions"><button type="button" aria-pressed={selected.length === patterns.length} onClick={() => onChange({ ...settings, excluded: selected.length === patterns.length ? patterns : [] })}>{selected.length === patterns.length ? 'Clear selection' : 'Select all'}</button></div>
       <div className="pattern-list" ref={list}>{patterns.map(pattern => <div className="pattern-row" data-pattern={pattern} key={pattern}>

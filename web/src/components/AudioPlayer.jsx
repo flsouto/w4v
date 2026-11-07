@@ -7,7 +7,7 @@ const clock = seconds => {
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
 };
 
-export function AudioPlayer({ src, name, buffer, rate = 1, autoPlay = false, renderTime, durationHint, onError }) {
+export function AudioPlayer({ src, name, buffer, rate = 1, autoPlay = false, renderTime, durationHint, pattern, onError }) {
   const audio = useRef(null), surface = useRef(null), canvas = useRef(null);
   const [playing, setPlaying] = useState(false), [time, setTime] = useState(0);
   const [duration, setDuration] = useState(buffer?.duration || durationHint || 0);
@@ -90,6 +90,9 @@ export function AudioPlayer({ src, name, buffer, rate = 1, autoPlay = false, ren
           if (Object.hasOwn(targets, event.key)) { event.preventDefault(); seek(targets[event.key]); }
         }}>
         <canvas data-capture="waveform" ref={canvas} width="1000" height="160" aria-hidden="true"/>
+        {pattern && <div className="pattern-markers" aria-label={`Mosaic pattern: ${pattern}, repeated four times`}>
+          {Array.from(pattern.repeat(4), (letter, index) => <span key={index} className={letter === '_' ? 'pattern-marker silence' : 'pattern-marker'} style={{ left: `${index / (pattern.length * 4) * 100}%`, width: `${100 / (pattern.length * 4)}%` }} title={`${letter === '_' ? 'Silence' : `Slice ${letter}`} · step ${index % pattern.length + 1} · repeat ${Math.floor(index / pattern.length) + 1}`}><span>{letter}</span></span>)}
+        </div>}
         <div className="played-region"/><div className="playhead" data-capture="playhead"/>
       </div>
       <div className="waveform-transport"><div className="transport-buttons">{transport}<IconButton icon="repeat" label="Loop playback" aria-pressed={loop} className={loop ? 'active' : ''} onClick={() => setLoop(!loop)}/></div><span className="playback-time" data-capture="clock">{clock(displayTime / rate)} <span>/ {clock(duration / rate)}</span></span><IconButton icon={muted ? 'mute' : 'volume'} label={muted ? 'Unmute loop output' : 'Mute loop output'} aria-pressed={muted} onClick={() => setMuted(!muted)}/></div>

@@ -115,8 +115,8 @@ function App() {
       const selectedPatterns = previewPattern ? [previewPattern] : mosaicPatterns.filter(pattern => !patternSettings.excluded.includes(pattern));
       if (!fxOnly && chosen === 'mosaic' && !selectedPatterns.length) throw new Error('Select at least one mosaic pattern.');
       const fxChoices = randomFx ? enabledFx : [effect];
-      if (!fxChoices.length) throw new Error('Select at least one FX for random selection.');
-      const chosenFx = fxChoices[Math.floor(Math.random() * fxChoices.length)];
+      if (!previewPattern && !fxChoices.length) throw new Error('Select at least one FX for random selection.');
+      const chosenFx = previewPattern ? '' : fxChoices[Math.floor(Math.random() * fxChoices.length)];
       const selectedSeed = String(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
       let response;
       if (fxOnly) {
@@ -136,9 +136,9 @@ function App() {
       const buffer = await audio().decodeAudioData(response.result.slice().buffer);
       if (token !== operation.current) return;
       const bytes = response.result, blob = new Blob([bytes], { type: 'audio/wav' });
-      setOutput({ bytes, buffer, url: URL.createObjectURL(blob), name: `generated-${fxOnly ? chosenFx : chosen}-${selectedSeed}.wav` });
+      setOutput({ bytes, buffer, url: URL.createObjectURL(blob), pattern: fxOnly ? (chosenFx === 'reverse' ? output.pattern?.split('').reverse().join('') : output.pattern) : response.pattern, name: `generated-${fxOnly ? chosenFx : chosen}-${selectedSeed}.wav` });
       if (random && !fxOnly) setBlender(chosen);
-      if (randomFx) setEffect(chosenFx);
+      if (randomFx && !previewPattern) setEffect(chosenFx);
       if (randomBpm && !locked) setBpm(Math.floor(Math.random() * (range[1] - range[0] + 1)) + range[0]);
       setMessage('');
     } catch (error) { if (token === operation.current) setMessage(error.message); }
@@ -216,7 +216,7 @@ function App() {
       <div className="tempo"><div className="tempo-main"><label>Playback tempo · {bpm} BPM<input type="range" data-capture="tempo" min={renderMode ? Math.min(40, bpm) : 40} max={renderMode ? Math.max(200, bpm) : 200} value={bpm} disabled={locked} onChange={e => setBpm(Number(e.target.value))}/></label><div className="actions tempo-actions"><IconButton icon={locked ? 'lock' : 'unlock'} label="Lock tempo" aria-pressed={locked} className={locked ? 'active' : ''} onClick={() => setLocked(!locked)}/><IconButton icon="shuffle" label="Random BPM" aria-pressed={randomBpm} className={randomBpm ? 'active' : ''} disabled={locked} onClick={() => setRandomBpm(!randomBpm)}/></div></div>{randomBpm && <div className="row">{range.map((value, i) => <label key={i}>{i ? 'Max' : 'Min'}<input type="number" min="40" max="200" value={value} disabled={locked} onChange={e => { const next = [...range]; next[i] = Math.max(40, Math.min(200, Number(e.target.value))); if (next[0] > next[1]) next[1 - i] = next[i]; setRange(next); }}/></label>)}</div>}</div>
       <div className="row"><IconButton icon="infinity" shortcut="f" label={busy ? 'Generating loop' : 'Generate loop'} className={`primary loop-generator ${busy ? 'processing' : ''}`} disabled={!ready || busy || visible.length < 3} onClick={() => generate()}/>{busy && <IconButton icon="close" label="Cancel processing" onClick={cancel}/>}</div><p role="status" className={message ? 'status' : 'sr-only'}>{message}</p>
     </section><section className="output-section" data-capture="output" aria-label="Loop output">{output ? <>
-      <AudioPlayer key={output.url} src={output.url} name="loop output" autoPlay={!renderMode} renderTime={renderTime} buffer={output.buffer} rate={renderMode ? 1 : bpm / 120} onError={setMessage}/>
+      <AudioPlayer key={output.url} src={output.url} name="loop output" autoPlay={!renderMode} renderTime={renderTime} buffer={output.buffer} pattern={output.pattern} rate={renderMode ? 1 : bpm / 120} onError={setMessage}/>
       <div className="output-footer"><p className="muted output-name" title={output.name}>{output.name}</p><div className="actions"><IconButton icon="download" label="Download WAV" onClick={() => report(async()=>download(await outputFile(),output.name))}/><IconButton className={feedback?.kind==='save' && feedback.loopId===savedOutput?.id ? 'is-flashing' : ''} icon="save" shortcut="s" label="Save to library" disabled={saving} onClick={() => report(() => save())}/><IconButton icon="star" shortcut="x" label={savedOutput?.favorite ? 'Remove output from favorites' : 'Favorite loop output'} aria-pressed={Boolean(savedOutput?.favorite)} className={`${savedOutput?.favorite ? 'active favorite' : ''} ${feedback?.kind==='favorite' && feedback.loopId===savedOutput?.id ? 'is-flashing' : ''}`} disabled={saving} onClick={() => report(() => save(!savedOutput?.favorite))}/><IconButton icon="loopFx" label="Apply selected effect" disabled={busy || (!randomFx && !effect)} onClick={() => generate(true)}/></div></div>
     </> : <p className="empty">Your next loop starts with three samples.</p>}</section>
     </main></div>
