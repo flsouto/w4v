@@ -163,3 +163,17 @@ input.audio-seek {
 @keyframes library-flash { from { background: #7fe0be20; } to { background: transparent; } }
 @keyframes saved-flash { from { box-shadow: 0 0 0 5px #7fe0be45; border-color: #b2f5d7; } to { box-shadow: 0 0 0 0 transparent; } }
 @media (prefers-reduced-motion: reduce) { .spin, .recently-updated, .is-flashing, .feedback-toast { animation: none; } }
+
+.mosaic-patterns { margin: 16px 0; }
+.mosaic-patterns summary { cursor: pointer; font-size: 13px; color: #b9c5d1; }
+.mosaic-patterns fieldset { border: 0; padding: 0; min-width: 0; }
+.pattern-list { max-height: 240px; overflow: auto; margin: 12px 0; }
+.pattern-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pattern-row .check { min-width: 0; }
+.pattern-row code { overflow-wrap: anywhere; }
+.pattern-row button { padding: 5px 8px; }
+.pattern-editor { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.pattern-editor > label { flex: 0 1 260px; min-width: 0; }
+.pattern-editor .actions { padding-bottom: 1px; }
+
+.pattern-new-chip { flex-shrink: 0; padding: 2px 6px; border: 1px solid #527f70; border-radius: 999px; background: #213931; color: #9de8ce; font-size: 10px; line-height: 1.3; }

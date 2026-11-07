@@ -28,7 +28,16 @@ pub fn get_blenders<'a>() -> HashMap<&'a str, BlenderFn<'a>> {
 }
 
 pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str, post_fx: Option<&str>) -> Out{
-    
+
+    blend_with_patterns(wavs, rng, blender, post_fx, None)
+}
+
+pub fn blend_with_patterns(wavs: In<'_>, rng: &mut StdRng, blender: &str, post_fx: Option<&str>, patterns: Option<&[String]>) -> Out {
+    if let Some(pool) = patterns {
+        if pool.is_empty() || pool.iter().any(|p| p.is_empty() || p.len() > 256 || !p.bytes().all(|c| c.is_ascii_lowercase() || c == b'_') || !p.bytes().any(|c| c.is_ascii_lowercase())) {
+            return Err("Patterns must contain 1–256 lowercase letters or underscores and at least one letter".into());
+        }
+    }
     let required = match blender {
         "samplicat" => 1,
         "mosaic" | "delayer" | "xfade" | "m4ze" | "dim" | "glitch" => 2,
@@ -46,7 +55,9 @@ pub fn blend<'a>(wavs: In<'a>, rng: &mut StdRng, blender: &str, post_fx: Option<
     } else { blender };
     let func = blenders.get(blender)
         .ok_or_else(|| format!("Invalid blender provided: {}", blender))?;
-    let mut out = func(wavs, rng);
+    let mut out = if blender == "mosaic" {
+        crate::blenders::mosaic::mosaic_with_patterns(wavs, rng, patterns)
+    } else { func(wavs, rng) };
 
     if let Some(fx) = post_fx {
         out = crate::fx::apply_fx_with_rng(&out?, rng, fx.to_string());
@@ -94,10 +105,11 @@ pub fn get_blenders_js() -> Vec<String> {
 }
 
 #[wasm_bindgen]
-pub fn blend_js(wav1: Vec<u8>, wav2: Vec<u8>, wav3: Vec<u8>, seed: u64, blender: &str, post_fx: Option<String>) -> Result<Vec<u8>, String> {
+pub fn blend_js(wav1: Vec<u8>, wav2: Vec<u8>, wav3: Vec<u8>, seed: u64, blender: &str, post_fx: Option<String>, patterns: Option<String>) -> Result<Vec<u8>, String> {
     let mut rng = StdRng::seed_from_u64(seed);
     let wavs: Vec<&[u8]> = vec![wav1.as_slice(), wav2.as_slice(), wav3.as_slice()];
-    let blended_wav_bytes = self::blend(&wavs, &mut rng, blender, post_fx.as_deref())?;
+    let pool = patterns.map(|value| value.lines().map(String::from).collect::<Vec<_>>());
+    let blended_wav_bytes = blend_with_patterns(&wavs, &mut rng, blender, post_fx.as_deref(), pool.as_deref())?;
 
     // Re-encode to 16-bit
     let mut reader = WavReader::new(Cursor::new(&blended_wav_bytes))

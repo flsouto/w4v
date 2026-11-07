@@ -14,7 +14,7 @@ self.onmessage = async ({ data: { id, type, payload } }) => {
     if (type === 'catalog') {
       result = { blenders: wasm.get_blenders_js().sort(), effects: wasm.get_fx_list_js().sort() };
     } else if (type === 'blend') {
-      result = wasm.blend_js(...payload.wavs, BigInt(payload.seed), payload.blender, payload.effect || undefined);
+      result = wasm.blend_js(...payload.wavs, BigInt(payload.seed), payload.blender, payload.effect || undefined, payload.patterns?.join('\n'));
     } else if (type === 'effect') {
       result = wasm.apply_fx_js(payload.wav, BigInt(payload.seed), payload.effect);
     } else throw new Error(`Unknown operation: ${type}`);

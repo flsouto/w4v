@@ -16,7 +16,7 @@ try {
   await page.waitForFunction(()=>Array.from(document.querySelector('select[aria-label="Mixer"]')?.options || []).some(option=>option.value==='glitch'));
   await page.evaluate(async()=>{
     const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('audioSamplerDB',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
-    const frames=44100,raw=new ArrayBuffer(44+frames*4),view=new DataView(raw);
+    const frames=44100*4,raw=new ArrayBuffer(44+frames*4),view=new DataView(raw);
     const put=(offset,text)=>[...text].forEach((c,i)=>view.setUint8(offset+i,c.charCodeAt(0)));
     put(0,'RIFF');view.setUint32(4,raw.byteLength-8,true);put(8,'WAVE');put(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,2,true);view.setUint32(24,44100,true);view.setUint32(28,176400,true);view.setUint16(32,4,true);view.setUint16(34,16,true);put(36,'data');view.setUint32(40,frames*4,true);
     for(let i=0;i<frames;i++){view.setInt16(44+i*4,Math.sin(i*.03)*10000,true);view.setInt16(46+i*4,Math.sin(i*.05)*10000,true);}
@@ -26,6 +26,55 @@ try {
   });
   await page.reload();
   await page.waitForFunction(()=>document.querySelectorAll('article').length===80 && [...document.querySelectorAll('article audio')].every(a=>a.src.startsWith('blob:')));
+  // Pattern controls and persistence use this isolated browser context only.
+  const patternPanel = page.locator('.mosaic-patterns');
+  await patternPanel.locator('summary').click();
+  assert.match(await patternPanel.locator('summary').innerText(), /430 \/ 430/);
+  await patternPanel.getByRole('button', {name:'Clear selection', exact:true}).click();
+  await patternPanel.getByLabel('Custom pattern', {exact:true}).fill('z_y_z___');
+  await patternPanel.getByRole('button', {name:'Add pattern', exact:true}).click();
+  assert.match(await patternPanel.locator('summary').innerText(), /1 \/ 431/);
+  assert.equal(await patternPanel.locator('.pattern-row').last().locator('.pattern-new-chip').innerText(), 'New');
+  const addedVisible = await patternPanel.locator('.pattern-row').last().evaluate(row => {
+    const bounds = row.getBoundingClientRect(), list = row.parentElement.getBoundingClientRect();
+    return bounds.top >= list.top && bounds.bottom <= list.bottom + 1;
+  });
+  assert.equal(addedVisible, true, 'Adding a pattern scrolls its row into the visible list');
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelectorAll('article').length===80);
+  await patternPanel.locator('summary').click();
+  assert.match(await patternPanel.locator('summary').innerText(), /1 \/ 431/);
+  assert.equal(await patternPanel.locator('.pattern-new-chip').count(), 0, 'New chips mark additions in the current session');
+  assert.equal(await patternPanel.getByRole('searchbox').count(), 0);
+  assert.equal(await patternPanel.locator('.pattern-row').count(), 431);
+  await patternPanel.getByRole('button', {name:'Edit', exact:true}).click();
+  await patternPanel.getByLabel('Custom pattern', {exact:true}).fill('z_y_z__');
+  await patternPanel.getByRole('button', {name:'Save pattern', exact:true}).click();
+  await patternPanel.getByRole('button', {name:'Delete pattern z_y_z__', exact:true}).click();
+  assert.match(await patternPanel.locator('summary').innerText(), /0 \/ 430/);
+  await page.getByRole('button', {name:'Generate loop', exact:true}).click();
+  await page.getByText('Select at least one mosaic pattern.', {exact:true}).waitFor();
+  await page.evaluate(() => {
+    window.previewRequests = [];
+    const send = Worker.prototype.postMessage;
+    Worker.prototype.postMessage = function(message, ...args) {
+      if (message.type === 'blend') window.previewRequests.push(message.payload);
+      return send.call(this, message, ...args);
+    };
+  });
+  await page.getByRole('button', {name:'Random mixer', exact:true}).click();
+  await patternPanel.getByLabel('Custom pattern', {exact:true}).fill('q_q_');
+  await patternPanel.getByRole('button', {name:'Preview pattern', exact:true}).click();
+  await page.waitForFunction(() => document.querySelector('.waveform-player audio') || document.querySelector('p.status')?.textContent);
+  assert.equal(await page.locator('p.status').count(), 0, await page.locator('p[role=status]').textContent());
+  await page.getByRole('button', {name:'Generate loop', exact:true}).waitFor();
+  const previewResult = await page.evaluate(() => ({ requests: window.previewRequests.map(p => ({blender:p.blender, patterns:p.patterns})), settings: JSON.parse(localStorage.getItem('looplicator.mosaic-patterns.v1')) }));
+  assert.deepEqual(previewResult.requests, [{blender:'mosaic', patterns:['q_q_']}]);
+  assert.deepEqual(previewResult.settings.custom, []);
+  assert.match(await patternPanel.locator('summary').innerText(), /0 \/ 430/);
+  await page.getByRole('button', {name:'Random mixer', exact:true}).click();
+  await patternPanel.getByRole('button', {name:'Select all', exact:true}).click();
+  await patternPanel.locator('summary').click();
   await page.evaluate(()=>{
     window.fullReads=0;const getAll=IDBObjectStore.prototype.getAll;IDBObjectStore.prototype.getAll=function(...args){window.fullReads++;return getAll.apply(this,args);};
     window.initialPlayers=new Map([...document.querySelectorAll('article')].map(row=>[row.querySelector('.filename').textContent,{audio:row.querySelector('audio'),src:row.querySelector('audio').src}]));
@@ -33,7 +82,7 @@ try {
   });
   await page.getByLabel('Mixer',{exact:true}).selectOption('samplicat');
   await page.getByRole('button',{name:'Generate loop',exact:true}).click();
-  await page.locator('.waveform-player audio').waitFor({state:'attached'});
+  await page.waitForFunction(() => document.querySelector('.output-name')?.textContent.startsWith('generated-samplicat-'));
   await page.locator('.tempo input[type=range]').fill('160');
   await page.getByRole('button',{name:'Save to library',exact:true}).click();
   await page.waitForFunction(()=>document.querySelectorAll('article').length===81);

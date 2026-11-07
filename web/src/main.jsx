@@ -9,10 +9,21 @@ import { storage } from './services/storage.js';
 import { Icon, IconButton } from './components/Icon.jsx';
 import { AudioPlayer } from './components/AudioPlayer.jsx';
 import './style.css';
+import builtInPatternText from '../../src/blenders/mosaic-patterns.txt?raw';
+import { loadPatternSettings, PATTERN_STORAGE_KEY } from './services/mosaic-patterns.js';
+import { MosaicPatterns } from './components/MosaicPatterns.jsx';
+const builtInPatterns = builtInPatternText.trim().split('\n');
 
 function App() {
   const renderMode = import.meta.env.DEV && new URLSearchParams(location.search).has('render');
   const [renderTime, setRenderTime] = useState(renderMode ? 0 : undefined);
+  const [patternSettings, setPatternSettings] = useState(() => renderMode ? { custom: [], excluded: [] } : loadPatternSettings());
+  const mosaicPatterns = [...new Set([...builtInPatterns, ...patternSettings.custom])];
+  function updatePatterns(settings) {
+    setPatternSettings(settings);
+    try { localStorage.setItem(PATTERN_STORAGE_KEY, JSON.stringify(settings)); }
+    catch { setMessage('Could not save pattern settings in this browser. Changes apply for this session.'); }
+  }
   const engine = useRef(null);
   if (!engine.current) engine.current = new Engine();
   const context = useRef(null), operation = useRef(0), savingOutput = useRef(false);
@@ -92,15 +103,17 @@ function App() {
       if(failures.length)setMessage(failures.join('; '));
     } finally {uploading.current=false;setUploadProgress(null);refreshUsage();}
   }
-  async function generate(fxOnly = false) {
+  async function generate(fxOnly = false, previewPattern = null) {
     const token = ++operation.current;
     setBusy(true); setMessage('');
     try {
       audio();
       if (token !== operation.current) return;
-      const choices = !fxOnly && random ? enabled : [blender];
+      const choices = previewPattern ? ['mosaic'] : !fxOnly && random ? enabled : [blender];
       if (!choices.length) throw new Error('Select at least one mixer for random selection.');
       const chosen = choices[Math.floor(Math.random() * choices.length)];
+      const selectedPatterns = previewPattern ? [previewPattern] : mosaicPatterns.filter(pattern => !patternSettings.excluded.includes(pattern));
+      if (!fxOnly && chosen === 'mosaic' && !selectedPatterns.length) throw new Error('Select at least one mosaic pattern.');
       const fxChoices = randomFx ? enabledFx : [effect];
       if (!fxChoices.length) throw new Error('Select at least one FX for random selection.');
       const chosenFx = fxChoices[Math.floor(Math.random() * fxChoices.length)];
@@ -117,7 +130,7 @@ function App() {
           wavs.push(await prepareWav(file, audio()));
           if (token !== operation.current) return;
         }
-        response = await engine.current.run('blend', { wavs, seed: selectedSeed, blender: chosen, effect: chosenFx }, wavs.map(wav => wav.buffer));
+        response = await engine.current.run('blend', { wavs, seed: selectedSeed, blender: chosen, effect: chosenFx, patterns: chosen === 'mosaic' ? selectedPatterns : undefined }, wavs.map(wav => wav.buffer));
       }
       if (token !== operation.current) return;
       const buffer = await audio().decodeAudioData(response.result.slice().buffer);
@@ -199,6 +212,7 @@ function App() {
           {randomFx && <fieldset id="fx-choices" className="choice-options" aria-label="Random FX choices">{catalog.effects.map(name => <label className="check" key={name}><input type="checkbox" checked={enabledFx.includes(name)} disabled={busy} onChange={e => setEnabledFx(e.target.checked ? [...enabledFx, name] : enabledFx.filter(n => n !== name))}/>{name}</label>)}</fieldset>}
         </div>
       </div>
+      {!renderMode && (blender === 'mosaic' || (random && enabled.includes('mosaic'))) && <MosaicPatterns patterns={mosaicPatterns} settings={patternSettings} onChange={updatePatterns} onPreview={pattern => generate(false, pattern)} previewDisabled={!ready || visible.length < 3} disabled={busy}/>}
       <div className="tempo"><div className="tempo-main"><label>Playback tempo · {bpm} BPM<input type="range" data-capture="tempo" min={renderMode ? Math.min(40, bpm) : 40} max={renderMode ? Math.max(200, bpm) : 200} value={bpm} disabled={locked} onChange={e => setBpm(Number(e.target.value))}/></label><div className="actions tempo-actions"><IconButton icon={locked ? 'lock' : 'unlock'} label="Lock tempo" aria-pressed={locked} className={locked ? 'active' : ''} onClick={() => setLocked(!locked)}/><IconButton icon="shuffle" label="Random BPM" aria-pressed={randomBpm} className={randomBpm ? 'active' : ''} disabled={locked} onClick={() => setRandomBpm(!randomBpm)}/></div></div>{randomBpm && <div className="row">{range.map((value, i) => <label key={i}>{i ? 'Max' : 'Min'}<input type="number" min="40" max="200" value={value} disabled={locked} onChange={e => { const next = [...range]; next[i] = Math.max(40, Math.min(200, Number(e.target.value))); if (next[0] > next[1]) next[1 - i] = next[i]; setRange(next); }}/></label>)}</div>}</div>
       <div className="row"><IconButton icon="infinity" shortcut="f" label={busy ? 'Generating loop' : 'Generate loop'} className={`primary loop-generator ${busy ? 'processing' : ''}`} disabled={!ready || busy || visible.length < 3} onClick={() => generate()}/>{busy && <IconButton icon="close" label="Cancel processing" onClick={cancel}/>}</div><p role="status" className={message ? 'status' : 'sr-only'}>{message}</p>
     </section><section className="output-section" data-capture="output" aria-label="Loop output">{output ? <>
