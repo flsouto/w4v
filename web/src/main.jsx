@@ -4,7 +4,9 @@ import JSZip from 'jszip';
 import { Engine } from './engine.js';
 import { prepareWav, download } from './audio.js';
 import { encodeWavAsync } from './wav-export.js';
-import { fileFromRecord, withFavorite, upsertFile } from './services/library-files.js';
+import { fileFromRecord, withFavorite, upsertFile, canDownloadFile } from './services/library-files.js';
+import { AddSamplesDialog } from './components/AddSamplesDialog.jsx';
+import { importStorePack } from './services/looplicator-store.js';
 import { storage } from './services/storage.js';
 import { Icon, IconButton } from './components/Icon.jsx';
 import { AudioPlayer } from './components/AudioPlayer.jsx';
@@ -39,6 +41,8 @@ function App() {
   const savedOutput = savedLoop?.url === output?.url && savedLoop?.bpm === bpm ? files.find(file => file.id === savedLoop.id) : null;
   const [range, setRange] = useState([80, 160]), [usage, setUsage] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null), [feedback, setFeedback] = useState(null);
+  const [addingSamples, setAddingSamples] = useState(false), [samplesMinimized, setSamplesMinimized] = useState(false);
+  const uploadInput = useRef(null);
   const [loadingLibrary, setLoadingLibrary] = useState(!renderMode);
   const libraryBusy=Boolean(uploadProgress)||loadingLibrary;
   const uploading = useRef(false), feedbackTimer = useRef(null), feedbackSequence = useRef(0);
@@ -71,6 +75,7 @@ function App() {
     return () => { active = false; delete window.__looplicatorCapture; };
   }, [renderMode]);
   const visible = files.filter(file => filter === 'all' || (filter === 'favorite' ? file.favorite : filter === 'generated' ? file.isGenerated : !file.isGenerated));
+  const downloadableFiles = visible.filter(canDownloadFile);
   const report = useCallback(task => Promise.resolve().then(task).catch(error => setMessage(error.message)), []);
   const removeFile = useCallback(id => report(async () => {
     await storage.deleteFile(id);
@@ -102,6 +107,24 @@ function App() {
       if(added)notify('upload',`Added ${added} ${added===1?'loop':'loops'}`,lastId);
       if(failures.length)setMessage(failures.join('; '));
     } finally {uploading.current=false;setUploadProgress(null);refreshUsage();}
+  }
+  async function loadStorePack(pack, signal) {
+    if (uploading.current) throw new Error('Another import is still running.');
+    uploading.current = true; setMessage('');
+    setUploadProgress({ completed: 0, total: pack.tracks.length, stage: 'Starting', track: pack.title });
+    let lastId;
+    try {
+      const result = await importStorePack(pack, {
+        signal, existingIds: new Set(files.map(file => file.id)),
+        convert: file => prepareWav(file, audio(), encodeWavAsync),
+        save: file => storage.saveFile(file),
+        onAdded: record => { const saved = fileFromRecord(record); setFiles(previous => upsertFile(previous, saved)); lastId = saved.id; },
+        onProgress: setUploadProgress,
+        yieldControl: () => new Promise(resolve => requestAnimationFrame(resolve)),
+      });
+      if (result.added) notify('upload', `Added ${result.added} ${result.added === 1 ? 'loop' : 'loops'} from ${pack.title}`, lastId);
+      return result;
+    } finally { uploading.current = false; setUploadProgress(null); refreshUsage(); }
   }
   async function generate(fxOnly = false, previewPattern = null) {
     const token = ++operation.current;
@@ -191,16 +214,18 @@ function App() {
     setFiles(previous=>previous.filter(file=>!ids.has(file.id)));
     refreshUsage();
   }
-  async function zip() { const archive = new JSZip(); for (const [i, file] of visible.entries()) archive.file(`${i + 1}-${file.name}`, file); download(await archive.generateAsync({ type: 'blob' }), 'looplicator-samples.zip'); }
+  async function zip() { if (!downloadableFiles.length) return; const archive = new JSZip(); for (const [i, file] of downloadableFiles.entries()) archive.file(`${i + 1}-${file.name}`, file); download(await archive.generateAsync({ type: 'blob' }), 'looplicator-samples.zip'); }
   return <div className="app" data-capture="app">
     <header data-capture="header"><img src={`${import.meta.env.BASE_URL}looplicator.png`} alt=""/><div><h1>Looplicator DAW</h1><span>Feed the loop. Fuel the machine.</span></div><div className="header-links"><a href="/news/">News</a><span className="badge">v{__APP_VERSION__}</span></div></header>
-    <div className="layout"><aside><div className="row"><h2>Sample library</h2><label className="button icon-button upload-button" aria-disabled={libraryBusy} onClick={event=>{if(libraryBusy)event.preventDefault();}} role="button" tabIndex={0} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if(!libraryBusy)event.currentTarget.querySelector('input').click(); } }} title="Add files" aria-label="Add files"><span className={libraryBusy ? 'spin' : ''}><Icon name={libraryBusy ? 'loader' : 'plus'}/></span><input disabled={libraryBusy} aria-label="Add audio files" type="file" accept=".wav,audio/wav" multiple hidden onChange={upload}/></label></div>
+    <div className="layout"><aside><div className="row"><h2>Sample library</h2><IconButton icon={libraryBusy ? 'loader' : 'plus'} className={libraryBusy ? 'upload-button spin' : 'upload-button'} label="Add files" disabled={libraryBusy} onClick={() => { setSamplesMinimized(false); setAddingSamples(true); }}/><input ref={uploadInput} disabled={libraryBusy} aria-label="Add audio files" type="file" accept=".wav,audio/wav" multiple hidden onChange={upload}/></div>
       <p className="muted" data-capture="library-count">{visible.length} / {files.length} loops · {usage ? `${(usage.used / 1048576).toFixed(1)} MB stored` : 'Local storage'}</p>
       {loadingLibrary && <div className="upload-progress" role="status"><span>Loading your library…</span><progress aria-label="Library loading"/></div>}
-      {uploadProgress && <div className="upload-progress" role="status"><span>Loading loops {uploadProgress.completed} / {uploadProgress.total}</span><progress aria-label="Loop upload progress" value={uploadProgress.completed} max={uploadProgress.total}/></div>}
+      {uploadProgress && !uploadProgress.stage && <div className="upload-progress" role="status"><span>Loading loops {uploadProgress.completed} / {uploadProgress.total}</span><progress aria-label="Loop upload progress" value={uploadProgress.completed} max={uploadProgress.total}/></div>}
+    {addingSamples && <AddSamplesDialog onClose={() => setAddingSamples(false)} onComputer={() => uploadInput.current.click()} onLoadPack={loadStorePack} progress={uploadProgress} minimized={samplesMinimized} onMinimize={() => setSamplesMinimized(true)} onRestore={() => setSamplesMinimized(false)}/>}
       <nav>{['all', 'uploaded', 'generated', 'favorite'].map(value => <IconButton key={value} icon={{all: 'grid', uploaded: 'upload', generated: 'wave', favorite: 'star'}[value]} label={{all: 'All samples', uploaded: 'Uploaded samples', generated: 'Generated samples', favorite: 'Favorite samples'}[value]} aria-pressed={filter === value} className={filter === value ? 'active' : ''} onClick={() => setFilter(value)}/>)}</nav>
       <div className="files" data-capture="library">{!visible.length && !libraryBusy && <p className="empty">Add three WAV samples to start making loops.</p>}{visible.map(file => <LibraryFile key={file.id} file={file} highlighted={feedback?.loopId===file.id} onError={setMessage} onDelete={removeFile} onFavorite={favoriteFile}/>)}</div>
-      <div className="actions library-actions"><IconButton icon="download" label="Download filtered samples as ZIP" disabled={!visible.length} onClick={() => report(zip)}/><IconButton icon="trash" label="Delete filtered samples" disabled={!visible.length} onClick={() => report(deleteFiltered)}/></div>
+      <div className="actions library-actions">{(!visible.length || downloadableFiles.length > 0) && <IconButton icon="download" label="Download filtered samples as ZIP" disabled={!downloadableFiles.length} onClick={() => report(zip)}/>}<IconButton icon="trash" label="Delete filtered samples" disabled={!visible.length} onClick={() => report(deleteFiltered)}/></div>
+      {visible.length > downloadableFiles.length && <p className="muted">Paid store samples are excluded from ZIP downloads.</p>}
     </aside><main><section className="generator-section" aria-label="Generator">
       <div className="controls">
         <div className="selector-group">
@@ -220,6 +245,7 @@ function App() {
       <div className="output-footer"><p className="muted output-name" title={output.name}>{output.name}</p><div className="actions"><IconButton icon="download" label="Download WAV" onClick={() => report(async()=>download(await outputFile(),output.name))}/><IconButton className={feedback?.kind==='save' && feedback.loopId===savedOutput?.id ? 'is-flashing' : ''} icon="save" shortcut="s" label="Save to library" disabled={saving} onClick={() => report(() => save())}/><IconButton icon="star" shortcut="x" label={savedOutput?.favorite ? 'Remove output from favorites' : 'Favorite loop output'} aria-pressed={Boolean(savedOutput?.favorite)} className={`${savedOutput?.favorite ? 'active favorite' : ''} ${feedback?.kind==='favorite' && feedback.loopId===savedOutput?.id ? 'is-flashing' : ''}`} disabled={saving} onClick={() => report(() => save(!savedOutput?.favorite))}/><IconButton icon="loopFx" label="Apply selected effect" disabled={busy || (!randomFx && !effect)} onClick={() => generate(true)}/></div></div>
     </> : <p className="empty">Your next loop starts with three samples.</p>}</section>
     </main></div>
+
     {feedback && <div key={feedback.sequence} className="feedback-toast" role="status"><Icon name={feedback.kind==='favorite' ? 'star' : 'check'}/><span>{feedback.message}</span></div>}
   </div>;
 }

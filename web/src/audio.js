@@ -1,5 +1,5 @@
 // Normalize imports to the engine's 44.1 kHz stereo PCM format.
-export async function prepareWav(file, context) {
+export async function prepareWav(file, context, encode = encodeWav) {
   if (file.size > 40 * 1024 * 1024) throw new Error(`${file.name}: maximum input size is 40 MB`);
   const decoded = await context.decodeAudioData(await file.arrayBuffer());
   if (decoded.duration > 60) throw new Error(`${file.name}: use samples no longer than 60 seconds`);
@@ -8,7 +8,7 @@ export async function prepareWav(file, context) {
   source.buffer = decoded;
   source.connect(offline.destination);
   source.start();
-  return encodeWav(await offline.startRendering());
+  return encode(await offline.startRendering());
 }
 export function encodeWav(buffer, rate = 1) {
   const channels = buffer.numberOfChannels;

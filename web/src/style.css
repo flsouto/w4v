@@ -182,3 +182,25 @@ input.audio-seek {
 .pattern-marker { position: absolute; top: 0; bottom: 0; border-left: 1px solid #7fe0be30; min-width: 0; }
 .pattern-marker > span { display: block; padding: 3px 0; overflow: hidden; text-align: center; font: 11px monospace; color: #c6f5df; background: #142b23d9; }
 .pattern-marker.silence > span { color: #98a6b5; background: #151b23d9; }
+
+.add-samples-dialog { width: min(580px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); box-sizing: border-box; overflow: auto; padding: 22px; border: 1px solid #465360; border-radius: 12px; background: #1b222b; color: #e7ecef; }
+.add-samples-dialog::backdrop { background: #090e16bd; }
+.sample-sources { display: grid; gap: 12px; margin-top: 22px; }
+.store-packs { border: 1px solid #323c48; border-radius: 6px; padding: 0; margin: 16px 0; max-height: 45vh; overflow: auto; }
+.store-pack { display: flex; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid #323c48; cursor: pointer; }
+.store-pack:last-child { border-bottom: 0; }
+.store-pack.selected { background: #213931; }
+.store-pack:has(input:disabled) { opacity: .5; cursor: default; }
+.store-pack input { flex: 0 0 auto; width: auto; margin: 0; accent-color: #7fe0be; }
+.store-pack > span { display: grid; gap: 4px; overflow-wrap: anywhere; min-width: 0; }
+.store-result { font-size: 13px; overflow-wrap: anywhere; margin-bottom: 14px; }
+.store-result ul { padding-left: 20px; }
+
+.store-pack .store-pack-thumbnail { flex: 0 0 54px; width: 54px; height: 54px; object-fit: cover; border-radius: 5px; background: #151b23; }
+.store-pack .store-pack-thumbnail.placeholder { display: flex; align-items: center; justify-content: center; color: #80909f; }
+
+.store-import-progress { margin: 12px 0; padding: 10px; border: 1px solid #527f70; border-radius: 8px; background: #1b292a; box-shadow: 0 4px 18px #0005; display: grid; gap: 6px; font-size: 12px; }
+.store-import-progress > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.store-import-progress progress { width: 100%; accent-color: #7fe0be; }
+.store-import-progress p { margin: 0; }
+.store-import-progress button { padding: 5px 8px; font-size: 11px; }

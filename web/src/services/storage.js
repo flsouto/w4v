@@ -103,7 +103,8 @@ class StorageService {
         data: buffer,
         lastModified: file.lastModified,
         favorite: file.favorite || metadata.favorite || false,
-        isGenerated: file.isGenerated || metadata.isGenerated || false
+        isGenerated: file.isGenerated || metadata.isGenerated || false,
+        storePack: file.storePack || metadata.storePack || null
       }
 
       transaction.oncomplete = () => resolve(fileObj)
