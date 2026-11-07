@@ -8,6 +8,7 @@ import { spawn,execFileSync } from 'node:child_process';
 import { createServer,preview } from 'vite';
 import { chromium } from 'playwright';
 import { connectCapture } from './video/capture-client.mjs';
+import { SUPPORT_STORAGE_KEY } from '../web/src/services/support-prompt.js';
 import { CAPTURE_TARGETS as targets } from '../web/src/capture-contract.js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -26,10 +27,13 @@ try {
   server=await createServer({root:join(root,'web'),configFile:join(root,'web/vite.config.js'),logLevel:'error',server:{host:'127.0.0.1',port:29000+Math.floor(Math.random()*1000),strictPort:false}});await server.listen();
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext({viewport:{width:1280,height:800},reducedMotion:'reduce'}),page=await context.newPage();
+  await page.addInitScript(key=>localStorage.setItem(key,JSON.stringify({supported:false,generatedSincePrompt:10})),SUPPORT_STORAGE_KEY);
   await page.route('**/__compat/*',route=>{const name=new URL(route.request().url()).pathname.split('/').at(-1);return fixtures.some(loop=>loop.name===name)?route.fulfill({path:join(input,name),contentType:'audio/wav'}):route.abort();});
-  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/?render=1`);
+  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/?render=1#support`);
   const capture=await connectCapture(page);assert.equal(capture.apiVersion,1);
   await capture.loadBatch(fixtures.map(loop=>({...loop,url:`/__compat/${loop.name}`})));
+  assert.equal(await page.locator('.support-dialog').count(),0,'Video capture must never mount the support prompt, even with a due counter and manual hash');
+  assert.equal(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)).generatedSincePrompt,SUPPORT_STORAGE_KEY),10,'Capture must not change support preferences');
   assert.equal(await page.locator(targets.libraryItem).count(),2);
   assert.deepEqual(await page.locator(targets.libraryName).allTextContents(),['first.wav','second.wav']);
   const catalog=await capture.getCatalog();assert.ok(catalog.blenders.includes('dim'));assert.ok(catalog.blenders.includes('glitch'));assert.ok(catalog.effects.includes('reverse'));
@@ -88,10 +92,11 @@ try {
   // Ensure compiled assets and live production behavior never expose capture control.
   for(const name of await readdir(join(root,'web/dist/assets')))if(name.endsWith('.js'))assert.doesNotMatch(await readFile(join(root,'web/dist/assets',name),'utf8'),/__looplicatorCapture|__looplicatorRender|render-bridge/);
   production=await preview({root:join(root,'web'),configFile:join(root,'web/vite.config.js'),logLevel:'error',preview:{host:'127.0.0.1',port:30000+Math.floor(Math.random()*1000),strictPort:false}});
-  browser=await chromium.launch({headless:true});const live=await browser.newPage();await live.goto(`http://127.0.0.1:${production.httpServer.address().port}/?render=1`);
+  browser=await chromium.launch({headless:true});const live=await browser.newPage();await live.addInitScript(key=>localStorage.setItem(key,JSON.stringify({supported:false,generatedSincePrompt:10})),SUPPORT_STORAGE_KEY);await live.goto(`http://127.0.0.1:${production.httpServer.address().port}/?render=1#support`);
   await live.waitForFunction(expected=>document.querySelector('[data-capture="mixer"]')?.options.length===expected,catalog.blenders.length);
   assert.deepEqual(await live.locator(`${targets.mixer} option`).allTextContents(),catalog.blenders);
   assert.equal(await live.evaluate(()=>typeof window.__looplicatorCapture),'undefined');
+  assert.equal(await live.locator('.support-dialog').count(),0,'Render URLs must suppress support prompts in production too');
   console.log('Renderer compatibility passed: v1 API, two loops, UI targets, waveform, rounded BPM, selections, playhead/excerpt wrap, real compilation A/V timing, and production isolation.');
 } finally {
   await browser?.close();await server?.close();

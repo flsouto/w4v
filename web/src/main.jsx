@@ -5,6 +5,7 @@ import { Engine } from './engine.js';
 import { prepareWav, download } from './audio.js';
 import { encodeWavAsync } from './wav-export.js';
 import { fileFromRecord, withFavorite, upsertFile, canDownloadFile } from './services/library-files.js';
+import { SupportPrompt } from './components/SupportPrompt.jsx';
 import { AddSamplesDialog } from './components/AddSamplesDialog.jsx';
 import { importStorePack } from './services/looplicator-store.js';
 import { storage } from './services/storage.js';
@@ -17,7 +18,9 @@ import { MosaicPatterns } from './components/MosaicPatterns.jsx';
 const builtInPatterns = builtInPatternText.trim().split('\n');
 
 function App() {
-  const renderMode = import.meta.env.DEV && new URLSearchParams(location.search).has('render');
+  const captureRequested = new URLSearchParams(location.search).has('render');
+  const renderMode = import.meta.env.DEV && captureRequested;
+  const [supportGenerationCount, setSupportGenerationCount] = useState(0);
   const [renderTime, setRenderTime] = useState(renderMode ? 0 : undefined);
   const [patternSettings, setPatternSettings] = useState(() => renderMode ? { custom: [], excluded: [] } : loadPatternSettings());
   const mosaicPatterns = [...new Set([...builtInPatterns, ...patternSettings.custom])];
@@ -160,6 +163,7 @@ function App() {
       if (token !== operation.current) return;
       const bytes = response.result, blob = new Blob([bytes], { type: 'audio/wav' });
       setOutput({ bytes, buffer, url: URL.createObjectURL(blob), pattern: fxOnly ? (chosenFx === 'reverse' ? output.pattern?.split('').reverse().join('') : output.pattern) : response.pattern, name: `generated-${fxOnly ? chosenFx : chosen}-${selectedSeed}.wav` });
+      if (!fxOnly && !captureRequested) setSupportGenerationCount(count => count + 1);
       if (random && !fxOnly) setBlender(chosen);
       if (randomFx && !previewPattern) setEffect(chosenFx);
       if (randomBpm && !locked) setBpm(Math.floor(Math.random() * (range[1] - range[0] + 1)) + range[0]);
@@ -195,6 +199,7 @@ function App() {
     function onShortcut(event) {
       if (event.defaultPrevented || event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.target.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="slider"]')) return;
+      if (document.querySelector('dialog[open]')) return;
       const key = event.key.toLowerCase();
       if (key === 'f' && ready && !busy && visible.length >= 3) {
         event.preventDefault();
@@ -246,6 +251,7 @@ function App() {
     </> : <p className="empty">Your next loop starts with three samples.</p>}</section>
     </main></div>
 
+    {!captureRequested && <SupportPrompt generationCount={supportGenerationCount} blocked={!ready || busy || libraryBusy || saving || (addingSamples && !samplesMinimized)}/>}
     {feedback && <div key={feedback.sequence} className="feedback-toast" role="status"><Icon name={feedback.kind==='favorite' ? 'star' : 'check'}/><span>{feedback.message}</span></div>}
   </div>;
 }

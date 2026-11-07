@@ -204,3 +204,12 @@ input.audio-seek {
 .store-import-progress progress { width: 100%; accent-color: #7fe0be; }
 .store-import-progress p { margin: 0; }
 .store-import-progress button { padding: 5px 8px; font-size: 11px; }
+
+.support-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); box-sizing: border-box; overflow: auto; padding: 24px; border: 1px solid #527f70; border-radius: 12px; background: #1b222b; color: #e7ecef; }
+.support-dialog::backdrop { background: #090e16bd; }
+.support-dialog p { font-size: 14px; line-height: 1.6; }
+.support-dialog .muted { font-size: 12px; }
+.support-links { display: grid; gap: 10px; margin: 20px 0; }
+.support-links a { text-decoration: none; text-align: center; }
+
+.support-dialog > .actions { justify-content: flex-end; }

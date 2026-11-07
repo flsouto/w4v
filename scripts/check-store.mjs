@@ -131,7 +131,7 @@ try {
   assert.equal(trackRequests.at(-1), '/old.mp3');
   assert.equal(await page.locator('article').count(), 4);
   await page.keyboard.press('Escape');
-  assert.equal(await page.locator('dialog').count(), 0);
+  assert.equal(await page.locator('dialog[open]').count(), 0);
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll('article').length === 4);
   const freeZipDownload = page.waitForEvent('download');
