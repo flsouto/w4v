@@ -23,11 +23,11 @@ async function currentUiFingerprint() {
 }
 const { values } = parseArgs({ options: {
   mixer: {type:'string'}, fx: {type:'string'}, glob: { type:'string' }, input: { type: 'string', multiple: true }, output: { type: 'string' },
-  portion: { type: 'string' }, last: { type: 'string' }, cycles: { type: 'string' }, fps: { type: 'string' }, size: { type: 'string' }, seconds: { type: 'string' },
+  portion: { type: 'string' }, last: { type: 'string' }, random: { type: 'string' }, cycles: { type: 'string' }, fps: { type: 'string' }, size: { type: 'string' }, seconds: { type: 'string' },
   history: { type: 'string' }, 'no-history-sync': { type: 'boolean' }, 'random-ui': { type: 'boolean' }, 'show-url': { type: 'boolean' }, 'browser-executable': { type: 'string' }, 'list-only': { type: 'boolean' }, help: { type: 'boolean' },
 } });
 if (values.help) {
-  console.log(`Render existing farm WAVs with the current Looplicator UI. Does not modify inputs.\n\nnpm run render:videos -- --input commits --last 10 --cycles 4\n\n--input DIR                 Explicit folders (overrides .env glob; default: commits)\n--glob PATTERN              Override VIDEO_INPUT_GLOB from .env\n--last N                    Newest N not-yet-compiled unique WAVs by mtime (default: 1)\n--portion FRACTION          Beginning of each loop to use (default: 1/4; use 1 for full)\n--cycles N                  Repeat that excerpt N times (default: 1)\n--fps N                     Frame rate, 1–60 (default: 30)\n--size WIDTHxHEIGHT         Even dimensions (default: 1920x1080)\n--seconds N                 Limit each video duration, useful for previews\n--random-ui                 Pick visual-only Mixer/FX selections for each clip\n--mixer NAME                Display this mixer, or random (overrides --random-ui)\n--fx NAME                   Display this FX, or random (overrides --random-ui)\n--show-url                  Show https://daw.looplicator.com in the captured header\n--output DIR                Destination for clips and final compilation (default: videos)\n--history FILE              Compilation ledger (default: repository compiled-loops.txt)\n--no-history-sync           Record locally without automatic Git commit/push\n--list-only                 Print selected WAVs without launching a browser\n--browser-executable PATH   Optional existing Chromium executable\n\nRequires FFmpeg/ffprobe and Chromium: npx playwright install chromium`);
+  console.log(`Render existing farm WAVs with the current Looplicator UI. Does not modify inputs.\n\nnpm run render:videos -- --input commits --last 10 --cycles 4\n\n--input DIR                 Explicit folders (overrides .env glob; default: commits)\n--glob PATTERN              Override VIDEO_INPUT_GLOB from .env\n--last N                    Newest N not-yet-compiled unique WAVs by mtime (default: 1)\n--random X                  Pick X random not-yet-compiled unique WAVs instead of --last\n--portion FRACTION          Beginning of each loop to use (default: 1/4; use 1 for full)\n--cycles N                  Repeat that excerpt N times (default: 1)\n--fps N                     Frame rate, 1–60 (default: 30)\n--size WIDTHxHEIGHT         Even dimensions (default: 1920x1080)\n--seconds N                 Limit each video duration, useful for previews\n--random-ui                 Pick visual-only Mixer/FX selections for each clip\n--mixer NAME                Display this mixer, or random (overrides --random-ui)\n--fx NAME                   Display this FX, or random (overrides --random-ui)\n--show-url                  Show https://daw.looplicator.com in the captured header\n--output DIR                Destination for clips and final compilation (default: videos)\n--history FILE              Compilation ledger (default: repository compiled-loops.txt)\n--no-history-sync           Record locally without automatic Git commit/push\n--list-only                 Print selected WAVs without launching a browser\n--browser-executable PATH   Optional existing Chromium executable\n\nRequires FFmpeg/ffprobe and Chromium: npx playwright install chromium`);
   process.exit(0);
 }
 let server, browser;
@@ -41,7 +41,7 @@ try {
   const historyPath = resolve(values.history ?? join(root,'compiled-loops.txt'));
   if (!values['list-only'] && !values['no-history-sync']) syncHistory(historyPath);
   const compiled = await readHistory(historyPath);
-  const inputs = await selectInputs(directories, settings.last, compiled, source.glob);
+  const inputs = await selectInputs(directories, settings.random ?? settings.last, compiled, source.glob, {random:settings.random !== undefined});
   if (!inputs.length) {
     console.log('No uncompiled WAV files found.');
     process.exit(0);
@@ -54,7 +54,7 @@ try {
   const uiFingerprint = await currentUiFingerprint();
   const libraryFingerprint = createHash('sha256').update(JSON.stringify(inputs.map(file => [file.sha256,file.name]))).digest('hex').slice(0,8);
   const manifestPath = join(output, `render-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
-  const manifest = { version, encodingProfile: ENCODING_PROFILE, historyPath, uiFingerprint, createdAt: new Date().toISOString(), ordering: 'mtime descending; content SHA-256 deduplication', inputGlob: source.glob, directories: directories.map(path => resolve(path)), settings, loops: inputs.map(file => ({ ...file, status: 'pending' })) };
+  const manifest = { version, encodingProfile: ENCODING_PROFILE, historyPath, uiFingerprint, createdAt: new Date().toISOString(), ordering: settings.random !== undefined ? 'uniform random without replacement; content SHA-256 deduplication' : 'mtime descending; content SHA-256 deduplication', inputGlob: source.glob, directories: directories.map(path => resolve(path)), settings, loops: inputs.map(file => ({ ...file, status: 'pending' })) };
   const saveManifest = () => writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   await saveManifest();
   const { createServer } = await import('vite');

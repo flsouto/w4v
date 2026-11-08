@@ -1,10 +1,10 @@
 import fastGlob from 'fast-glob';
 import { readdir, stat, readFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 import { resolve, basename } from 'node:path';
 
 // Top-level directory scan only. Never source/execute .farmrc or modify farm files.
-export async function selectInputs(directories, last, compiled = new Set(), pattern) {
+export async function selectInputs(directories, last, compiled = new Set(), pattern, selection = {}) {
   const candidates = [];
   let paths = [];
   if (pattern) paths = await fastGlob(pattern, { absolute:true, onlyFiles:true, unique:true, followSymbolicLinks:false });
@@ -29,9 +29,20 @@ export async function selectInputs(directories, last, compiled = new Set(), patt
     if (hashes.has(file.sha256)) continue;
     hashes.add(file.sha256);
     selected.push(file);
-    if (selected.length === last) break;
+    if (!selection.random && selected.length === last) break;
   }
-  return selected;
+  return chooseInputs(selected, last, selection);
+}
+
+export function chooseInputs(files, count, { random = false, pick = randomInt } = {}) {
+  if (!random) return files.slice(0, count);
+  const pool = [...files], size = Math.min(count, pool.length);
+  // Uniform sampling without replacement, after history filtering and deduplication.
+  for (let i = 0; i < size; i++) {
+    const j = i + pick(pool.length - i);
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, size);
 }
 
 export function parseOptions(values) {
@@ -40,6 +51,8 @@ export function parseOptions(values) {
     if (!Number.isInteger(value) || value <= 0 || value > max) throw new Error(`--${key} must be an integer from 1 to ${max}`);
     return value;
   };
+  if (values.random !== undefined && values.last !== undefined) throw new Error('Choose either --random X or --last N, not both');
+  const random = values.random === undefined ? undefined : integer('random', undefined, 10000);
   const last = integer('last', 1, 10000), cycles = integer('cycles', 1, 1000), fps = integer('fps', 30, 60);
   const size = /^(\d+)x(\d+)$/.exec(values.size ?? '1920x1080');
   if (!size) throw new Error('--size must be WIDTHxHEIGHT');
@@ -56,7 +69,7 @@ export function parseOptions(values) {
   for (const [key, choice] of [['mixer', mixer], ['fx', fx]]) {
     if (choice !== undefined && choice !== '' && !/^[a-z][a-z0-9]*$/.test(choice)) throw new Error(`--${key} must be an engine option or random`);
   }
-  return { mixer, fx, last, cycles, fps, width, height, seconds, portion, showUrl: Boolean(values['show-url']), randomUi: Boolean(values['random-ui']) };
+  return { mixer, fx, random, last, cycles, fps, width, height, seconds, portion, showUrl: Boolean(values['show-url']), randomUi: Boolean(values['random-ui']) };
 }
 
 export async function fingerprintFiles(directory) {

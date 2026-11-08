@@ -93,18 +93,19 @@ try {
   await browser.close();browser=undefined;await server.close();server=undefined;
   // Run the real CLI, encoder, history isolation, and final compilation pipeline.
   await new Promise((resolve,reject)=>{
-    const child=spawn(process.execPath,[join(root,'scripts/render-videos.mjs'),'--input',input,'--last','2','--portion','1/4','--cycles','2','--fps','6','--size','1280x800','--show-url','--random-ui','--mixer','random','--fx','random','--output',output,'--history',join(directory,'history.txt'),'--no-history-sync'],{cwd:root,stdio:'inherit'});
+    const child=spawn(process.execPath,[join(root,'scripts/render-videos.mjs'),'--input',input,'--random','2','--portion','1/4','--cycles','2','--fps','6','--size','1280x800','--show-url','--random-ui','--mixer','random','--fx','random','--output',output,'--history',join(directory,'history.txt'),'--no-history-sync'],{cwd:root,stdio:'inherit'});
     child.once('error',reject);child.once('close',code=>code===0?resolve():reject(new Error(`Renderer smoke exited ${code}`)));
   });
   const manifests=(await readdir(output)).filter(name=>name.startsWith('render-')&&name.endsWith('.json'));
   const manifest=JSON.parse(await readFile(join(output,manifests[0]),'utf8'));
   assert.equal(manifest.captureApiVersion,1);assert.equal(manifest.loops.length,2);assert.equal(manifest.compilation.status,'complete');
-  assert.equal(manifest.encodingProfile,'pcm-f32-aac384-v1');assert.deepEqual(manifest.loops.map(loop=>loop.ui.bpm),[120,240]);assert.ok(manifest.loops.every(loop=>loop.ui.mixer==='random'&&loop.ui.fx==='random'));
+  assert.equal(manifest.encodingProfile,'pcm-f32-aac384-v1');assert.deepEqual(manifest.loops.map(loop=>loop.ui.bpm).sort((a,b)=>a-b),[120,240]);assert.ok(manifest.loops.every(loop=>loop.ui.mixer==='random'&&loop.ui.fx==='random'));
   const probe=JSON.parse(execFileSync('ffprobe',['-v','error','-show_entries','stream=codec_type,codec_name,duration,sample_rate,channels','-of','json',join(output,'compilation.mp4')],{encoding:'utf8'}));
   const video=probe.streams.find(stream=>stream.codec_type==='video'),audio=probe.streams.find(stream=>stream.codec_type==='audio');
   assert.equal(audio.codec_name,'aac');assert.equal(audio.sample_rate,'48000');assert.equal(audio.channels,2);
   assert.ok(Math.abs(Number(video.duration)-12)<=1/6);assert.ok(Math.abs(Number(audio.duration)-Number(video.duration))<=1/6);
-  assert.deepEqual((await readFile(join(directory,'history.txt'),'utf8')).trim().split('\n'),['first.wav','second.wav']);
+  assert.deepEqual((await readFile(join(directory,'history.txt'),'utf8')).trim().split('\n'),manifest.loops.map(loop=>loop.name));
+  assert.match(manifest.ordering,/uniform random without replacement/);
   // Ensure compiled assets and live production behavior never expose capture control.
   for(const name of await readdir(join(root,'web/dist/assets')))if(name.endsWith('.js'))assert.doesNotMatch(await readFile(join(root,'web/dist/assets',name),'utf8'),/__looplicatorCapture|__looplicatorRender|render-bridge/);
   production=await preview({root:join(root,'web'),configFile:join(root,'web/vite.config.js'),logLevel:'error',preview:{host:'127.0.0.1',port:30000+Math.floor(Math.random()*1000),strictPort:false}});

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, utimes, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { selectInputs, parseOptions } from '../../scripts/video/inputs.mjs';
+import { selectInputs, chooseInputs, parseOptions } from '../../scripts/video/inputs.mjs';
 
 test('selects newest unique saved WAVs across farm folders without changing them', async () => {
   const root = await mkdtemp(join(tmpdir(), 'looplicator-inputs-'));
@@ -21,7 +21,7 @@ test('selects newest unique saved WAVs across farm folders without changing them
   } finally { await rm(root,{recursive:true,force:true}); }
 });
 test('validates render timing and even video dimensions', () => {
-  assert.deepEqual(parseOptions({}),{mixer:undefined,fx:undefined,last:1,cycles:1,fps:30,width:1920,height:1080,seconds:undefined,portion:0.25,showUrl:false,randomUi:false});
+  assert.deepEqual(parseOptions({}),{mixer:undefined,fx:undefined,random:undefined,last:1,cycles:1,fps:30,width:1920,height:1080,seconds:undefined,portion:0.25,showUrl:false,randomUi:false});
   assert.equal(parseOptions({portion:'1/2'}).portion,0.5);
   assert.equal(parseOptions({portion:'1'}).portion,1);
   assert.equal(parseOptions({'show-url':true}).showUrl,true);
@@ -103,5 +103,25 @@ test('history sync commits only the ledger, preserves unrelated staging, and pus
     assert.throws(()=>syncHistory(path));
     assert.ok((await readHistory(path)).has('two.wav'));
     assert.equal(git('diff','--cached','--name-only'),'unrelated.txt');
+  } finally {await rm(dir,{recursive:true,force:true});}
+});
+
+test('random batches sample unique uncompiled content without preferring newest files', async () => {
+  const dir=await mkdtemp(join(tmpdir(),'looplicator-random-inputs-'));
+  try {
+    for(const [name,data,time] of [['compiled.wav','compiled',400],['new.wav','new',300],['duplicate.wav','new',200],['old.wav','old',100],['empty.wav','',500]]) {
+      const path=join(dir,name);await writeFile(path,data);await utimes(path,time,time);
+    }
+    const history=new Set(['compiled.wav']);
+    const old=await selectInputs([dir],1,history,undefined,{random:true,pick:max=>max-1});
+    assert.equal(old[0].name,'old.wav','Random sampling must include older eligible loops');
+    const all=await selectInputs([dir],100,history,undefined,{random:true,pick:max=>max-1});
+    assert.equal(all.length,2);assert.equal(new Set(all.map(file=>file.sha256)).size,2);
+    assert.ok(all.every(file=>file.name!=='compiled.wav'&&file.name!=='empty.wav'));
+    assert.equal(await readFile(join(dir,'compiled.wav'),'utf8'),'compiled');
+    assert.deepEqual(chooseInputs([],10,{random:true}),[]);
+    assert.deepEqual(chooseInputs(['a','b','c'],2,{random:true,pick:max=>max-1}),['c','a']);
+    assert.equal(parseOptions({random:'7'}).random,7);
+    for(const options of [{random:'0'},{random:'-1'},{random:'1.5'},{random:'10001'},{random:'2',last:'1'}]) assert.throws(()=>parseOptions(options));
   } finally {await rm(dir,{recursive:true,force:true});}
 });
