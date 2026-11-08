@@ -14,7 +14,8 @@ type BlenderFn<'a> = fn(In<'a>, &mut StdRng) -> Out;
 
 pub fn get_blenders<'a>() -> HashMap<&'a str, BlenderFn<'a>> {
 
-    HashMap::from([
+    #[allow(unused_mut)]
+    let mut blenders = HashMap::from([
         ("mosaic", mosaic as BlenderFn),
         ("delayer", delayer as BlenderFn),    
         ("xfade", xfade as BlenderFn),
@@ -23,7 +24,10 @@ pub fn get_blenders<'a>() -> HashMap<&'a str, BlenderFn<'a>> {
         ("samplicat", samplicat as BlenderFn),
         ("dim", dim as BlenderFn),
         ("glitch", glitch as BlenderFn)
-    ])
+    ]);
+    #[cfg(not(target_arch = "wasm32"))]
+    blenders.insert("experimental", crate::blenders::experimental::experimental as BlenderFn);
+    blenders
 
 }
 
@@ -57,7 +61,19 @@ fn blend_with_details(wavs: In<'_>, rng: &mut StdRng, blender: &str, post_fx: Op
         println!("Rand blender resolved to '{}'", fname);
         fname
     } else { blender };
-    let func = blenders.get(blender)
+    #[cfg(not(target_arch = "wasm32"))]
+    let blender = if blender == "experimental" {
+        let selected = crate::blenders::experimental::choose(rng);
+        println!("Experimental blender resolved to '{}'", selected.name);
+        selected.name
+    } else { blender };
+    #[cfg(not(target_arch = "wasm32"))]
+    let experimental = crate::blenders::experimental::find(blender);
+    #[cfg(not(target_arch = "wasm32"))]
+    let experimental_func = experimental.map(|mixer| mixer.mix as BlenderFn);
+    #[cfg(target_arch = "wasm32")]
+    let experimental_func: Option<BlenderFn> = None;
+    let func = blenders.get(blender).copied().or(experimental_func)
         .ok_or_else(|| format!("Invalid blender provided: {}", blender))?;
     let mut pattern = None;
     let mut out = if blender == "mosaic" {
@@ -75,6 +91,8 @@ fn blend_with_details(wavs: In<'_>, rng: &mut StdRng, blender: &str, post_fx: Op
     }
 
     let out = maxgain(&out?)?;
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(mixer) = experimental { return Ok(((mixer.finish)(out, rng)?, pattern)); }
     if blender == "glitch" {
         // Trim after normalization and FX so maxgain cannot undo the reduction.
         // Avoid gain(), whose tanh soft clipping would also reshape the audio.
@@ -112,7 +130,7 @@ use std::io::Cursor;
 
 #[wasm_bindgen]
 pub fn get_blenders_js() -> Vec<String> {
-    get_blenders().keys().map(|str|str.to_string()).collect()
+    get_blenders().keys().filter(|name| **name != "experimental").map(|name|name.to_string()).collect()
 }
 
 #[wasm_bindgen]

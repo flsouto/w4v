@@ -19,3 +19,6 @@ pub use dim::dim;
 
 pub mod glitch;
 pub use glitch::glitch;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod experimental;

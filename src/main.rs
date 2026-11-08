@@ -63,6 +63,10 @@ enum Commands {
     Remix(RemixArgs),
     Mosaic(MosaicArgs),
     Blend(BlendArgs),
+    #[cfg(not(target_arch = "wasm32"))]
+    Orbit(w4v::blenders::experimental::orbit::OrbitArgs),
+    #[cfg(not(target_arch = "wasm32"))]
+    Imprint(w4v::blenders::experimental::imprint::ImprintArgs),
     Mix(MixArgs),
 }
 
@@ -211,6 +215,32 @@ fn main() -> Result<(), String> {
             fs::write(&args.output, output_wav).map_err(|e| format!("Failed to write output file: {}", e))?;
             println!("Saved to {}", args.output);
         },
+        #[cfg(not(target_arch = "wasm32"))]
+        Commands::Orbit(args) => {
+            let mut rng = match cli.seed { Some(seed) => StdRng::seed_from_u64(seed), None => StdRng::from_entropy() };
+            let mut samples = [&args.anchor, &args.motif, &args.answer].into_iter()
+                .map(|path| fs::read(path).map_err(|e| format!("Failed to read '{}': {e}", path)))
+                .collect::<Result<Vec<_>, _>>()?;
+            w4v::utils::normalize_blend_inputs(&mut samples)?;
+            let inputs: Vec<&[u8]> = samples.iter().map(Vec::as_slice).collect();
+            let output = blend(&inputs, &mut rng, "orbit", args.fx.as_deref())?;
+            fs::write(&args.output, w4v::utils::finalize_blend_output(output)?)
+                .map_err(|e| format!("Failed to write '{}': {e}", args.output))?;
+            println!("Saved Orbit to {}", args.output);
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        Commands::Imprint(args) => {
+            let mut rng = match cli.seed { Some(seed) => StdRng::seed_from_u64(seed), None => StdRng::from_entropy() };
+            let mut samples = [&args.rhythm, &args.texture, &args.accents].into_iter()
+                .map(|path| fs::read(path).map_err(|e| format!("Failed to read '{}': {e}", path)))
+                .collect::<Result<Vec<_>, _>>()?;
+            w4v::utils::normalize_blend_inputs(&mut samples)?;
+            let inputs: Vec<&[u8]> = samples.iter().map(Vec::as_slice).collect();
+            let output = blend(&inputs, &mut rng, "imprint", args.fx.as_deref())?;
+            fs::write(&args.output, w4v::utils::finalize_blend_output(output)?)
+                .map_err(|e| format!("Failed to write '{}': {e}", args.output))?;
+            println!("Saved Imprint to {}", args.output);
+        }
         Commands::Blend(args) => {
             println!("Blending wavs in '{}' with '{}'...", args.input_folder, args.blender);
 
@@ -225,12 +255,11 @@ fn main() -> Result<(), String> {
                 .filter(|entry| entry.path().extension().map_or(false, |ext| ext == "wav"))
                 .collect::<Vec<_>>();
 
-            if entries.len() < 4 {
-                return Err("Input folder must contain at least 4 WAV files".to_string());
-            }
+            let required = if args.blender == "experimental" || w4v::blenders::experimental::find(&args.blender).is_some() { 3 } else { 4 };
+            if entries.len() < required { return Err(format!("Input folder must contain at least {} WAV files", required)); }
 
             let mut samples = Vec::new();
-            for entry in entries.choose_multiple(&mut rng, 4) {
+            for entry in entries.choose_multiple(&mut rng, required) {
                 let wav_data = fs::read(entry.path()).map_err(|e| {
                     format!("Failed to read WAV file '{}': {}", entry.path().display(), e)
                 })?;

@@ -67,7 +67,7 @@ npm run build
 cargo run --release --example profile_blenders -- AmenBreak.wav
 ```
 
-The profiling harness runs each of the eight ported mixers with seeds 0–2 using the supplied WAV for all three inputs. Native timing is useful for comparisons, but browser timings are the relevant measure for WASM. Use browser profiling tools to measure WASM and end-to-end generation time. For a failing pattern, record the mixer, ordered inputs, seed, effect, and browser, then compare with the PHP reference before changing musical behavior.
+The profiling harness runs all native mixers (the eight ports plus the experimental `experimental` selector) with seeds 0–2 using the supplied WAV for all three inputs. Native timing is useful for comparisons, but browser timings are the relevant measure for WASM. Use browser profiling tools to measure WASM and end-to-end generation time. For a failing pattern, record the mixer, ordered inputs, seed, effect, and browser, then compare with the PHP reference before changing musical behavior.
 
 ## Dim mixer
 
@@ -92,6 +92,42 @@ Filter design follows the standard [RBJ biquad equations](https://webaudio.githu
 This is a musical rather than bit-identical port: pitch shifting and stretching use Hann-windowed granular overlap-add with linear interpolation instead of SoX. The sixteen pitch calls are collapsed into a single shift with the same total cents, avoiding repeated DSP and encoding. Stutters retain the exact piece length with a minimum one-frame slice. Seeded choices are repeatable in Rust, but do not reproduce PHP's random sequence. Inputs must have matching rates/channels, finite samples, and at least 64 frames each; the output is capped at 32 million samples (about 128 MB).
 
 Tests cover registration, two-input dispatch, seeded repeatability, duration normalization, identical repeated cycles, pitch/tempo behavior, SoX fade reference values, and invalid inputs. The browser compatibility check also generates a glitch loop through the real WASM worker with reverse FX and verifies the decoded output.
+
+## Experimental mixers (CLI only)
+
+Experimental mixers live separately in `src/blenders/experimental/`. The `experimental` mixer randomly chooses one of that catalog’s registered experiments (currently Orbit and Imprint). Native `rand` chooses among the eight regular mixers and `experimental`, never individual experiments. You can still request an experiment by name. Neither `experimental` nor the experimental catalog is compiled into WASM.
+
+```sh
+cargo run --release -- --seed 42 blend /path/to/samples output.wav experimental
+```
+
+### Orbit
+
+`orbit` layers a repeating four-beat anchor, a three-beat motif, and a sparse six-beat answer. The shorter phrases move through different positions against the anchor. Their clocks run independently inside the output phrase and reset at its boundary. Fragments keep their original pitch; the mixer adds short fades, level balancing, and gentle stereo placement, with no built-in reverb or granular resynthesis.
+
+```sh
+cargo run --release -- --seed 42 orbit anchor.wav motif.wav answer.wav output.wav
+cargo run --release -- --seed 43 orbit anchor.wav motif.wav answer.wav another.wav --fx reverb
+# Alternatively, assign three random WAVs from a folder:
+cargo run --release -- --seed 42 blend /path/to/samples output.wav orbit
+```
+
+The dry output is exactly **eight four-beat bars** at a seeded tempo of 104–144 BPM: roughly **13–18.5 seconds**, using 16 seconds as a reference rather than a fixed length. No events are scheduled after the final bar. Fragment tails wrap to keep the audio boundary continuous. Optional post-FX that extend the result beyond the limit are shortened only by whole halves, retaining four or two bars; if even two bars cannot fit below 24 seconds, that FX combination is rejected. The result never ends with a fractional or extra bar.
+
+Inputs can have different sample rates and mono/stereo layouts through the CLI; they are normalized to 44.1 kHz stereo without changing source files. Output is 16-bit PCM WAV. `blend ... orbit` and `blend ... experimental` need at least three input files. Native `blend ... rand` can reach Orbit through `experimental`. The explicit command fixes the three source roles, making seeds reproducible for auditioning.
+
+Orbit is native-only, with bounded input decoding and rejection of malformed/non-finite audio. It is excluded from the WASM build and browser catalog. The compiled CLI is `target/release/w4v` after `cargo build --release`.
+
+### Imprint
+
+`imprint` transfers the actual attacks and dynamics of a rhythm source onto overlapping grains from a texture source, with a third source supplying accents. The rhythm itself is not mixed into the result.
+
+```sh
+cargo run --release -- --seed 42 imprint rhythm.wav texture.wav accents.wav output.wav
+cargo run --release -- --seed 42 blend /path/to/samples output.wav imprint
+```
+
+It analyzes up to the first six seconds of the rhythm, varies its timing scale by seed, creates four phrase variations, and keeps one randomly selected half. Maximum-length inputs produce about 7.2–11.4 seconds before optional FX; shorter inputs produce shorter loops. Post-FX output remains below 24 seconds. Input normalization, PCM export, and optional `--fx` work like Orbit. Imprint is experimental and CLI-only; `experimental` can select it, while `rand` reaches it only through `experimental`.
 
 ## News and release notes
 
