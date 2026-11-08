@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { resolve, dirname, basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdir, readFile, writeFile, rename, unlink, access, mkdtemp, rm } from 'node:fs/promises';
-import { createHash, randomInt } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import { tmpdir } from 'node:os';
@@ -12,6 +12,7 @@ import { clipTiming } from './video/timing.mjs';
 import { readHistory, recordCompilation, syncHistory } from './video/history.mjs';
 import { ENCODING_PROFILE, INTERMEDIATE_EXTENSION, INTERMEDIATE_AUDIO } from './video/encoding.mjs';
 import { concatenateClips } from './video/concatenate.mjs';
+import { choosePresentation } from './video/presentation.mjs';
 import { selectInputs, parseOptions, fingerprintFiles, estimateBpm } from './video/inputs.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -21,12 +22,12 @@ async function currentUiFingerprint() {
     .update(await readFile(join(root, 'web/public/looplicator.png'))).digest('hex');
 }
 const { values } = parseArgs({ options: {
-  glob: { type:'string' }, input: { type: 'string', multiple: true }, output: { type: 'string' },
+  mixer: {type:'string'}, fx: {type:'string'}, glob: { type:'string' }, input: { type: 'string', multiple: true }, output: { type: 'string' },
   portion: { type: 'string' }, last: { type: 'string' }, cycles: { type: 'string' }, fps: { type: 'string' }, size: { type: 'string' }, seconds: { type: 'string' },
   history: { type: 'string' }, 'no-history-sync': { type: 'boolean' }, 'random-ui': { type: 'boolean' }, 'show-url': { type: 'boolean' }, 'browser-executable': { type: 'string' }, 'list-only': { type: 'boolean' }, help: { type: 'boolean' },
 } });
 if (values.help) {
-  console.log(`Render existing farm WAVs with the current Looplicator UI. Does not modify inputs.\n\nnpm run render:videos -- --input commits --last 10 --cycles 4\n\n--input DIR                 Explicit folders (overrides .env glob; default: commits)\n--glob PATTERN              Override VIDEO_INPUT_GLOB from .env\n--last N                    Newest N not-yet-compiled unique WAVs by mtime (default: 1)\n--portion FRACTION          Beginning of each loop to use (default: 1/4; use 1 for full)\n--cycles N                  Repeat that excerpt N times (default: 1)\n--fps N                     Frame rate, 1–60 (default: 30)\n--size WIDTHxHEIGHT         Even dimensions (default: 1920x1080)\n--seconds N                 Limit each video duration, useful for previews\n--random-ui                 Pick visual-only Mixer/FX selections for each clip\n--show-url                  Show https://daw.looplicator.com in the captured header\n--output DIR                Destination for clips and final compilation (default: videos)\n--history FILE              Compilation ledger (default: repository compiled-loops.txt)\n--no-history-sync           Record locally without automatic Git commit/push\n--list-only                 Print selected WAVs without launching a browser\n--browser-executable PATH   Optional existing Chromium executable\n\nRequires FFmpeg/ffprobe and Chromium: npx playwright install chromium`);
+  console.log(`Render existing farm WAVs with the current Looplicator UI. Does not modify inputs.\n\nnpm run render:videos -- --input commits --last 10 --cycles 4\n\n--input DIR                 Explicit folders (overrides .env glob; default: commits)\n--glob PATTERN              Override VIDEO_INPUT_GLOB from .env\n--last N                    Newest N not-yet-compiled unique WAVs by mtime (default: 1)\n--portion FRACTION          Beginning of each loop to use (default: 1/4; use 1 for full)\n--cycles N                  Repeat that excerpt N times (default: 1)\n--fps N                     Frame rate, 1–60 (default: 30)\n--size WIDTHxHEIGHT         Even dimensions (default: 1920x1080)\n--seconds N                 Limit each video duration, useful for previews\n--random-ui                 Pick visual-only Mixer/FX selections for each clip\n--mixer NAME                Display this mixer, or random (overrides --random-ui)\n--fx NAME                   Display this FX, or random (overrides --random-ui)\n--show-url                  Show https://daw.looplicator.com in the captured header\n--output DIR                Destination for clips and final compilation (default: videos)\n--history FILE              Compilation ledger (default: repository compiled-loops.txt)\n--no-history-sync           Record locally without automatic Git commit/push\n--list-only                 Print selected WAVs without launching a browser\n--browser-executable PATH   Optional existing Chromium executable\n\nRequires FFmpeg/ffprobe and Chromium: npx playwright install chromium`);
   process.exit(0);
 }
 let server, browser;
@@ -80,7 +81,8 @@ try {
   });
   await capture.loadBatch(library);
   await capture.setPresentation({showUrl:settings.showUrl});
-  const uiCatalog = settings.randomUi ? await capture.getCatalog() : null;
+  const uiCatalog = settings.randomUi || settings.mixer !== undefined || settings.fx !== undefined ? await capture.getCatalog() : null;
+  choosePresentation(settings, uiCatalog); // Validate explicit choices before encoding any clips.
   if (uiCatalog && (!uiCatalog.blenders.length || !uiCatalog.effects.length)) throw new Error('Random UI requires a nonempty engine catalog; run npm run build:wasm first');
   let failures = 0;
   for (const record of manifest.loops) {
@@ -99,7 +101,7 @@ try {
       if (!(sourceDuration > 0) || !Number.isFinite(sourceDuration) || !probe.streams?.some(stream => stream.codec_type === 'audio')) throw new Error('Invalid or empty audio input');
       const sampleRate = Number(probe.streams.find(stream => stream.codec_type === 'audio').sample_rate);
       const {excerptSamples,excerptDuration,duration,frames} = clipTiming(sourceDuration,sampleRate,settings);
-      record.ui = { bpm: estimateBpm(sourceDuration), mixer: uiCatalog ? uiCatalog.blenders[randomInt(uiCatalog.blenders.length)] : '', fx: uiCatalog ? uiCatalog.effects[randomInt(uiCatalog.effects.length)] : '', visualOnly: settings.randomUi };
+      record.ui = { bpm: estimateBpm(sourceDuration), ...choosePresentation(settings, uiCatalog) };
       const controlsId = createHash('sha256').update(JSON.stringify(record.ui)).digest('hex').slice(0,8);
       const id = `${ENCODING_PROFILE}-${basename(record.name).replace(/\.wav$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80)}-${record.sha256.slice(0, 8)}-ui${uiFingerprint.slice(0, 8)}-lib${libraryFingerprint}-ctl${controlsId}-${settings.showUrl ? 'url' : 'plain'}-${settings.width}x${settings.height}-${settings.fps}fps-p${settings.portion}-c${settings.cycles}-${duration.toFixed(3)}s`;
       const destination = join(output, `${id}.${INTERMEDIATE_EXTENSION}`);

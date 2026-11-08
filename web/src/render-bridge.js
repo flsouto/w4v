@@ -1,9 +1,9 @@
 // Development-only adapter. React setters and component structure stay here;
 // automation consumes the versioned capture contract instead of app internals.
 import { flushSync } from 'react-dom';
-import { CAPTURE_API_VERSION, CAPTURE_TARGETS } from './capture-contract.js';
+import { CAPTURE_API_VERSION, CAPTURE_TARGETS, CAPTURE_RANDOM_VALUE } from './capture-contract.js';
 
-export function createRenderBridge({ setOutput, setFiles, setTime, setBpm, setCatalog, setBlender, setEffect }) {
+export function createRenderBridge({ setOutput, setFiles, setTime, setBpm, setCatalog, setBlender, setEffect, setRandom, setRandomFx, setEnabled, setEnabledFx }) {
   let batch = new Map(), duration = 0, excerptDuration = 0, catalogPromise;
   const paint = () => new Promise(resolve => requestAnimationFrame(resolve));
   async function getCatalog() {
@@ -12,7 +12,7 @@ export function createRenderBridge({ setOutput, setFiles, setTime, setBpm, setCa
       return {blenders:wasm.get_blenders_js().sort(),effects:wasm.get_fx_list_js().sort()};
     });
     const catalog=await catalogPromise;
-    flushSync(()=>setCatalog(catalog));
+    flushSync(()=>{setCatalog(catalog);setEnabled(catalog.blenders);setEnabledFx(catalog.effects);});
     return catalog;
   }
   return Object.freeze({
@@ -30,13 +30,13 @@ export function createRenderBridge({ setOutput, setFiles, setTime, setBpm, setCa
       if (bpm!==undefined && (!Number.isInteger(bpm)||bpm<1)) throw new Error('Capture BPM must be a positive integer');
       if ((mixer!==undefined && mixer!=='') || (fx!==undefined && fx!=='')) {
         const catalog=await getCatalog();
-        if (mixer && !catalog.blenders.includes(mixer)) throw new Error(`Unknown capture mixer: ${mixer}`);
-        if (fx && !catalog.effects.includes(fx)) throw new Error(`Unknown capture FX: ${fx}`);
+        if (mixer && mixer !== CAPTURE_RANDOM_VALUE && !catalog.blenders.includes(mixer)) throw new Error(`Unknown capture mixer: ${mixer}`);
+        if (fx && fx !== CAPTURE_RANDOM_VALUE && !catalog.effects.includes(fx)) throw new Error(`Unknown capture FX: ${fx}`);
       }
       flushSync(()=>{
         if(bpm!==undefined)setBpm(bpm);
-        if(mixer!==undefined)setBlender(mixer);
-        if(fx!==undefined)setEffect(fx);
+        if(mixer!==undefined){setRandom(mixer===CAPTURE_RANDOM_VALUE);if(mixer!==CAPTURE_RANDOM_VALUE)setBlender(mixer);}
+        if(fx!==undefined){setRandomFx(fx===CAPTURE_RANDOM_VALUE);if(fx!==CAPTURE_RANDOM_VALUE)setEffect(fx);}
       });
       if (showUrl!==undefined) {
         document.querySelector('[data-capture="address"]')?.remove();

@@ -44,6 +44,8 @@ The support prompt appears after every 10 successfully generated loops (includin
 
 Local development also serves `/news/`, article pages, RSS, and news CSS directly; unknown news URLs return 404 rather than opening the DAW. JSON posts kept under `web/news/drafts/` appear in a **Drafts for review** section only during `npm run dev`, at `/news/drafts/<slug>/`. Drafts are marked as unpublished and excluded from production pages, RSS, and sitemap output. Refresh a news page after editing its source to see the latest text.
 
+Audio engine startup is independent of library storage. Saved loops are read one at a time with an IndexedDB cursor, avoiding a single response containing the entire audio library. If the browser cannot open or read its saved library, mixers still load and the library offers **Retry library** or **Use temporary library**. Temporary mode supports imports, generation, saving, favorites, and deletion in memory for the current page; it never clears or replaces the persistent database, and its files disappear on reload. The recovery check injects database failures into an isolated browser and verifies that existing samples remain intact.
+
 ## Audio processing and freezes
 
 The previous Vue component called `blend_js` and `apply_fx_js` synchronously on the main thread. All WASM calls, including initialization, now run in a dedicated worker. Requests have IDs, errors return to the UI, cancellation terminates the worker, and a 60-second timeout terminates jobs that do not complete. The next job creates a new worker. Cancellation also discards stale results during input decoding.
@@ -144,6 +146,8 @@ npm run render:videos -- --input commits --last 10 --portion 1/4 --show-url
 The capture estimates BPM from the **full source loop** using `round(120 × 16 / durationSeconds)` (minimum 1 BPM). The slider displays this whole-number estimate and expands its bounds in capture mode if needed. This is the requested duration heuristic, not beat detection. It is display-only: playback timestamps and the soundtrack remain at the WAV's original speed even if a quarter excerpt is selected.
 
 `--random-ui` fills the Mixer and FX dropdowns with randomly selected real engine options for each clip. These are visual presentation choices, not inferred generation metadata, and no effects or mixers are applied to the saved audio. Choices and estimated BPM are recorded in the manifest and included in cache identity. This optional flag needs the generated WASM catalog (`npm run build:wasm` if absent). Without it, unknown mixer/FX metadata remains labeled CLI output / not recorded.
+
+Use `--mixer random --fx random` to display **random** in both disabled selects and leave both shuffle buttons toggled on in the video. Named values (for example `--mixer glitch --fx reverse`) are also accepted. Capture keeps the editing checklists collapsed so the output stays in frame. Explicit choices override `--random-ui` for that control. These are visual settings only; they do not process the input audio. The selected values remain in the manifest and cache identity. In the interactive DAW, enabling shuffle also displays **random**, while switching it off restores the last chosen mixer or FX.
 
 ```sh
 npm run render:videos -- --input commits --last 10 --show-url --random-ui

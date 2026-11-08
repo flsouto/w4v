@@ -26,6 +26,18 @@ try {
   });
   await page.reload();
   await page.waitForFunction(()=>document.querySelectorAll('article').length===80 && [...document.querySelectorAll('article audio')].every(a=>a.src.startsWith('blob:')));
+  await page.getByLabel('FX',{exact:true}).selectOption('reverb');
+  await page.getByRole('button',{name:'Random mixer',exact:true}).click();
+  await page.getByRole('button',{name:'Random FX',exact:true}).click();
+  for (const name of ['Mixer','FX']) {
+    const select=page.getByLabel(name,{exact:true});
+    assert.equal(await select.inputValue(),'random');assert.equal(await select.isDisabled(),true);
+  }
+  await page.getByRole('button',{name:'Random mixer',exact:true}).click();
+  await page.getByRole('button',{name:'Random FX',exact:true}).click();
+  assert.equal(await page.getByLabel('Mixer',{exact:true}).inputValue(),'mosaic');
+  assert.equal(await page.getByLabel('FX',{exact:true}).inputValue(),'reverb');
+  await page.getByLabel('FX',{exact:true}).selectOption('');
   // Pattern controls and persistence use this isolated browser context only.
   const patternPanel = page.locator('.mosaic-patterns');
   await patternPanel.locator('summary').click();
@@ -89,7 +101,7 @@ try {
   await patternPanel.getByRole('button', {name:'Select all', exact:true}).click();
   await patternPanel.locator('summary').click();
   await page.evaluate(()=>{
-    window.fullReads=0;const getAll=IDBObjectStore.prototype.getAll;IDBObjectStore.prototype.getAll=function(...args){window.fullReads++;return getAll.apply(this,args);};
+    window.fullReads=0;for(const method of ['getAll','openCursor']) {const original=IDBObjectStore.prototype[method];IDBObjectStore.prototype[method]=function(...args){window.fullReads++;return original.apply(this,args);};}
     window.initialPlayers=new Map([...document.querySelectorAll('article')].map(row=>[row.querySelector('.filename').textContent,{audio:row.querySelector('audio'),src:row.querySelector('audio').src}]));
     const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){this.muted=true;return play.call(this);};
   });

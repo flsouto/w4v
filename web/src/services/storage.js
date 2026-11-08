@@ -7,8 +7,22 @@ const DB_VERSION = 1
 class StorageService {
   constructor() {
     this.db = null
-    this.initPromise = this.init()
+    this.initPromise = null
+    this.sessionFiles = null
     this.storageEstimate = null
+  }
+
+  useTemporaryLibrary() {
+    this.db?.close();
+    this.db = null;
+    this.sessionFiles = new Map();
+  }
+
+  async reconnect() {
+    this.db?.close();
+    this.db = null;
+    this.initPromise = null;
+    await this.ensureInitialized();
   }
 
   async init() {
@@ -49,6 +63,10 @@ class StorageService {
 
   async getStorageInfo() {
     await this.ensureInitialized()
+    if (this.sessionFiles) {
+      const used = [...this.sessionFiles.values()].reduce((sum, file) => sum + file.size, 0);
+      return { used, total: 0, available: 0, percentUsed: 0 };
+    }
     const estimate = await this.updateStorageEstimate()
 
     if (!estimate) {
@@ -69,8 +87,10 @@ class StorageService {
   }
 
   async ensureInitialized() {
+    if (this.sessionFiles) return;
     if (!this.db) {
-      await this.initPromise
+      this.initPromise ||= this.init().catch(error => { this.initPromise = null; throw error; });
+      await this.initPromise;
     }
   }
 
@@ -89,23 +109,17 @@ class StorageService {
     // Get the array buffer first, outside the transaction
     const buffer = await file.arrayBuffer()
 
+    const fileObj = {
+      id: file.id || crypto.randomUUID(), name: file.name, type: file.type,
+      size: file.size, data: buffer, lastModified: file.lastModified,
+      favorite: file.favorite || metadata.favorite || false,
+      isGenerated: file.isGenerated || metadata.isGenerated || false,
+      storePack: file.storePack || metadata.storePack || null,
+    };
+    if (this.sessionFiles) { this.sessionFiles.set(fileObj.id, fileObj); return fileObj; }
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([STORE_NAME], 'readwrite')
       const store = transaction.objectStore(STORE_NAME)
-
-      // Use existing ID if file has one, otherwise generate new
-      const fileId = file.id || crypto.randomUUID()
-      const fileObj = {
-        id: fileId,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        data: buffer,
-        lastModified: file.lastModified,
-        favorite: file.favorite || metadata.favorite || false,
-        isGenerated: file.isGenerated || metadata.isGenerated || false,
-        storePack: file.storePack || metadata.storePack || null
-      }
 
       transaction.oncomplete = () => resolve(fileObj)
 
@@ -126,19 +140,24 @@ class StorageService {
 
   async getAllFiles() {
     await this.ensureInitialized()
+    if (this.sessionFiles) return [...this.sessionFiles.values()].map(fileFromRecord);
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([STORE_NAME], 'readonly')
-      const store = transaction.objectStore(STORE_NAME)
-      const request = store.getAll()
-
+      const transaction = this.db.transaction([STORE_NAME], 'readonly');
+      const files = [];
+      // Avoid returning the entire audio library in one IndexedDB response.
+      const request = transaction.objectStore(STORE_NAME).openCursor();
+      transaction.oncomplete = () => resolve(files);
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error || new Error('Library read was interrupted'));
       request.onsuccess = () => {
-        const files = request.result.map(fileFromRecord)
-        resolve(files)
-      }
-
-      request.onerror = () => reject(request.error)
-    })
+        const cursor = request.result;
+        if (!cursor) return;
+        try { files.push(fileFromRecord(cursor.value)); cursor.continue(); }
+        catch (error) { reject(error); transaction.abort(); }
+      };
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async deleteFile(fileId) {
@@ -147,6 +166,7 @@ class StorageService {
 
   async deleteFiles(fileIds) {
     await this.ensureInitialized();
+    if (this.sessionFiles) { for (const id of fileIds) this.sessionFiles.delete(id); return; }
     return new Promise((resolve,reject)=>{
       const transaction=this.db.transaction([STORE_NAME],'readwrite');
       transaction.oncomplete=()=>resolve();
@@ -159,6 +179,7 @@ class StorageService {
 
   async clear() {
     await this.ensureInitialized()
+    if (this.sessionFiles) { this.sessionFiles.clear(); return; }
 
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([STORE_NAME], 'readwrite')
@@ -183,6 +204,11 @@ class StorageService {
 
   async updateFileFavorite(fileId, favorite) {
     await this.ensureInitialized()
+    if (this.sessionFiles) {
+      const file = this.sessionFiles.get(fileId);
+      if (!file) throw new Error('File not found');
+      const updated = { ...file, favorite }; this.sessionFiles.set(fileId, updated); return updated;
+    }
 
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([STORE_NAME], 'readwrite')

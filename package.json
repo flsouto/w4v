@@ -19,7 +19,7 @@
     "plan:videos": "node scripts/plan-videos.mjs",
     "test:library": "npm run build --workspace web && node scripts/check-library.mjs",
     "test:renderer": "npm run build --workspace web && node scripts/check-renderer.mjs",
-    "test:compat": "npm run test:renderer && node scripts/check-library.mjs && node scripts/check-store.mjs && node scripts/check-support.mjs && node scripts/check-news.mjs",
+    "test:compat": "npm run test:renderer && node scripts/check-library.mjs && node scripts/check-store.mjs && node scripts/check-support.mjs && node scripts/check-news.mjs && node scripts/check-storage.mjs",
     "check": "npm test && npm run test:compat"
   },
   "version": "3.3.1",

@@ -21,7 +21,7 @@ test('selects newest unique saved WAVs across farm folders without changing them
   } finally { await rm(root,{recursive:true,force:true}); }
 });
 test('validates render timing and even video dimensions', () => {
-  assert.deepEqual(parseOptions({}),{last:1,cycles:1,fps:30,width:1920,height:1080,seconds:undefined,portion:0.25,showUrl:false,randomUi:false});
+  assert.deepEqual(parseOptions({}),{mixer:undefined,fx:undefined,last:1,cycles:1,fps:30,width:1920,height:1080,seconds:undefined,portion:0.25,showUrl:false,randomUi:false});
   assert.equal(parseOptions({portion:'1/2'}).portion,0.5);
   assert.equal(parseOptions({portion:'1'}).portion,1);
   assert.equal(parseOptions({'show-url':true}).showUrl,true);

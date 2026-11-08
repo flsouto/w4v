@@ -46,6 +46,8 @@ function App() {
   const [uploadProgress, setUploadProgress] = useState(null), [feedback, setFeedback] = useState(null);
   const [addingSamples, setAddingSamples] = useState(false), [samplesMinimized, setSamplesMinimized] = useState(false);
   const uploadInput = useRef(null);
+  const [libraryError, setLibraryError] = useState(''), [temporaryLibrary, setTemporaryLibrary] = useState(false);
+  const libraryOperation = useRef(0);
   const [loadingLibrary, setLoadingLibrary] = useState(!renderMode);
   const libraryBusy=Boolean(uploadProgress)||loadingLibrary;
   const uploading = useRef(false), feedbackTimer = useRef(null), feedbackSequence = useRef(0);
@@ -57,13 +59,30 @@ function App() {
   useEffect(()=>()=>clearTimeout(feedbackTimer.current),[]);
   const audio = () => context.current ||= new AudioContext({ sampleRate: 44100 });
   const refreshUsage = useCallback(() => storage.getStorageInfo().then(setUsage).catch(error => setMessage(error.message)), []);
+  async function readLibrary(retry = false) {
+    const token = ++libraryOperation.current;
+    setLoadingLibrary(true); setLibraryError('');
+    try {
+      if (retry) await storage.reconnect();
+      const [saved, info] = await Promise.all([storage.getAllFiles(), storage.getStorageInfo()]);
+      if (token !== libraryOperation.current) return;
+      setFiles(saved); setUsage(info);
+    } catch (error) {
+      if (token === libraryOperation.current) setLibraryError(error.message || 'Browser storage is unavailable.');
+    } finally { if (token === libraryOperation.current) setLoadingLibrary(false); }
+  }
+  function useTemporaryLibrary() {
+    storage.useTemporaryLibrary(); setTemporaryLibrary(true); setLibraryError('');
+    setFiles([]); refreshUsage();
+  }
   useEffect(() => {
     let active = true;
-    Promise.all([renderMode ? Promise.resolve({ result: { blenders: [], effects: [] } }) : engine.current.run('catalog'), renderMode ? [] : storage.getAllFiles(), renderMode ? null : storage.getStorageInfo()]).then(([{ result }, saved, info]) => {
+    (renderMode ? Promise.resolve({result:{blenders:[],effects:[]}}) : engine.current.run('catalog')).then(({result}) => {
       if (!active) return;
-      setCatalog(result); setEnabled(result.blenders); setEnabledFx(result.effects); setFiles(saved); setUsage(info); setReady(true); setLoadingLibrary(false); setMessage('');
-    }).catch(error => { if(active){setLoadingLibrary(false);setMessage(error.message);} });
-    return () => { active = false; operation.current++; engine.current.cancel(); context.current?.close(); };
+      setCatalog(result); setEnabled(result.blenders); setEnabledFx(result.effects); setReady(true); setMessage('');
+    }).catch(error => { if (active) setMessage(`Audio engine: ${error.message}`); });
+    if (!renderMode) readLibrary();
+    return () => { active = false; libraryOperation.current++; operation.current++; engine.current.cancel(); context.current?.close(); };
   }, []);
   useEffect(() => {
     if (!output) return;
@@ -73,7 +92,7 @@ function App() {
     if (!import.meta.env.DEV || !renderMode) return;
     let active = true;
     import('./render-bridge.js').then(({ createRenderBridge }) => {
-      if (active) window.__looplicatorCapture = createRenderBridge({ setOutput, setFiles, setTime: setRenderTime, setBpm, setCatalog, setBlender, setEffect });
+      if (active) window.__looplicatorCapture = createRenderBridge({ setOutput, setFiles, setTime: setRenderTime, setBpm, setCatalog, setBlender, setEffect, setRandom, setRandomFx, setEnabled, setEnabledFx });
     });
     return () => { active = false; delete window.__looplicatorCapture; };
   }, [renderMode]);
@@ -222,8 +241,10 @@ function App() {
   async function zip() { if (!downloadableFiles.length) return; const archive = new JSZip(); for (const [i, file] of downloadableFiles.entries()) archive.file(`${i + 1}-${file.name}`, file); download(await archive.generateAsync({ type: 'blob' }), 'looplicator-samples.zip'); }
   return <div className="app" data-capture="app">
     <header data-capture="header"><img src={`${import.meta.env.BASE_URL}looplicator.png`} alt=""/><div><h1>Looplicator DAW</h1><span>Feed the loop. Fuel the machine.</span></div><div className="header-links"><a href="/news/">News</a><span className="badge">v{__APP_VERSION__}</span></div></header>
-    <div className="layout"><aside><div className="row"><h2>Sample library</h2><IconButton icon={libraryBusy ? 'loader' : 'plus'} className={libraryBusy ? 'upload-button spin' : 'upload-button'} label="Add files" disabled={libraryBusy} onClick={() => { setSamplesMinimized(false); setAddingSamples(true); }}/><input ref={uploadInput} disabled={libraryBusy} aria-label="Add audio files" type="file" accept=".wav,audio/wav" multiple hidden onChange={upload}/></div>
-      <p className="muted" data-capture="library-count">{visible.length} / {files.length} loops · {usage ? `${(usage.used / 1048576).toFixed(1)} MB stored` : 'Local storage'}</p>
+    <div className="layout"><aside><div className="row"><h2>Sample library</h2><IconButton icon={libraryBusy ? 'loader' : 'plus'} className={libraryBusy ? 'upload-button spin' : 'upload-button'} label="Add files" disabled={libraryBusy || Boolean(libraryError)} onClick={() => { setSamplesMinimized(false); setAddingSamples(true); }}/><input ref={uploadInput} disabled={libraryBusy || Boolean(libraryError)} aria-label="Add audio files" type="file" accept=".wav,audio/wav" multiple hidden onChange={upload}/></div>
+      <p className="muted" data-capture="library-count">{visible.length} / {files.length} loops · {usage ? `${(usage.used / 1048576).toFixed(1)} MB ${temporaryLibrary ? 'in session' : 'stored'}` : 'Local storage'}</p>
+      {libraryError && <div className="library-recovery" role="alert"><p>Your saved library could not be opened. Existing samples have not been changed.</p><div className="actions"><button type="button" onClick={() => readLibrary(true)}>Retry library</button><button type="button" onClick={useTemporaryLibrary}>Use temporary library</button></div><details><summary>Error details</summary><p>{libraryError}</p></details></div>}
+      {temporaryLibrary && <p className="muted" role="status">Temporary library — files will be lost when this page is reloaded.</p>}
       {loadingLibrary && <div className="upload-progress" role="status"><span>Loading your library…</span><progress aria-label="Library loading"/></div>}
       {uploadProgress && !uploadProgress.stage && <div className="upload-progress" role="status"><span>Loading loops {uploadProgress.completed} / {uploadProgress.total}</span><progress aria-label="Loop upload progress" value={uploadProgress.completed} max={uploadProgress.total}/></div>}
     {addingSamples && <AddSamplesDialog onClose={() => setAddingSamples(false)} onComputer={() => uploadInput.current.click()} onLoadPack={loadStorePack} progress={uploadProgress} minimized={samplesMinimized} onMinimize={() => setSamplesMinimized(true)} onRestore={() => setSamplesMinimized(false)}/>}
@@ -234,12 +255,12 @@ function App() {
     </aside><main><section className="generator-section" aria-label="Generator">
       <div className="controls">
         <div className="selector-group">
-          <div className="mixer-control"><label>Mixer<select aria-label="Mixer" data-capture="mixer" value={blender} disabled={renderMode || random || busy} onChange={e => setBlender(e.target.value)}>{renderMode && <option value="">CLI output</option>}{catalog.blenders.map(name => <option key={name}>{name}</option>)}</select></label><IconButton icon="shuffle" label="Random mixer" aria-pressed={random} aria-expanded={random} aria-controls="mixer-choices" className={random ? 'active' : ''} disabled={busy} onClick={() => setRandom(!random)}/></div>
-          {random && <fieldset id="mixer-choices" className="choice-options" aria-label="Random mixer choices">{renderMode && <option value="">CLI output</option>}{catalog.blenders.map(name => <label className="check" key={name}><input type="checkbox" checked={enabled.includes(name)} disabled={busy} onChange={e => setEnabled(e.target.checked ? [...enabled, name] : enabled.filter(n => n !== name))}/>{name}</label>)}</fieldset>}
+          <div className="mixer-control"><label>Mixer<select aria-label="Mixer" data-capture="mixer" value={random ? 'random' : blender} disabled={renderMode || random || busy} onChange={e => setBlender(e.target.value)}>{random && <option value="random">random</option>}{renderMode && <option value="">CLI output</option>}{catalog.blenders.map(name => <option key={name}>{name}</option>)}</select></label><IconButton icon="shuffle" data-capture="random-mixer" label="Random mixer" aria-pressed={random} aria-expanded={random && !renderMode} aria-controls="mixer-choices" className={random ? 'active' : ''} disabled={busy} onClick={() => setRandom(!random)}/></div>
+          {random && !renderMode && <fieldset id="mixer-choices" className="choice-options" aria-label="Random mixer choices">{renderMode && <option value="">CLI output</option>}{catalog.blenders.map(name => <label className="check" key={name}><input type="checkbox" checked={enabled.includes(name)} disabled={busy} onChange={e => setEnabled(e.target.checked ? [...enabled, name] : enabled.filter(n => n !== name))}/>{name}</label>)}</fieldset>}
         </div>
         <div className="selector-group">
-          <div className="mixer-control"><label>FX<select aria-label="FX" data-capture="fx" value={effect} disabled={renderMode || randomFx || busy} onChange={e => setEffect(e.target.value)}><option value="">{renderMode ? 'Not recorded' : 'None'}</option>{catalog.effects.map(name => <option key={name}>{name}</option>)}</select></label><IconButton icon="shuffle" label="Random FX" aria-pressed={randomFx} aria-expanded={randomFx} aria-controls="fx-choices" className={randomFx ? 'active' : ''} disabled={busy} onClick={() => setRandomFx(!randomFx)}/></div>
-          {randomFx && <fieldset id="fx-choices" className="choice-options" aria-label="Random FX choices">{catalog.effects.map(name => <label className="check" key={name}><input type="checkbox" checked={enabledFx.includes(name)} disabled={busy} onChange={e => setEnabledFx(e.target.checked ? [...enabledFx, name] : enabledFx.filter(n => n !== name))}/>{name}</label>)}</fieldset>}
+          <div className="mixer-control"><label>FX<select aria-label="FX" data-capture="fx" value={randomFx ? 'random' : effect} disabled={renderMode || randomFx || busy} onChange={e => setEffect(e.target.value)}>{randomFx && <option value="random">random</option>}<option value="">{renderMode ? 'Not recorded' : 'None'}</option>{catalog.effects.map(name => <option key={name}>{name}</option>)}</select></label><IconButton icon="shuffle" data-capture="random-fx" label="Random FX" aria-pressed={randomFx} aria-expanded={randomFx && !renderMode} aria-controls="fx-choices" className={randomFx ? 'active' : ''} disabled={busy} onClick={() => setRandomFx(!randomFx)}/></div>
+          {randomFx && !renderMode && <fieldset id="fx-choices" className="choice-options" aria-label="Random FX choices">{catalog.effects.map(name => <label className="check" key={name}><input type="checkbox" checked={enabledFx.includes(name)} disabled={busy} onChange={e => setEnabledFx(e.target.checked ? [...enabledFx, name] : enabledFx.filter(n => n !== name))}/>{name}</label>)}</fieldset>}
         </div>
       </div>
       {!renderMode && (blender === 'mosaic' || (random && enabled.includes('mosaic'))) && <MosaicPatterns patterns={mosaicPatterns} settings={patternSettings} onChange={updatePatterns} onPreview={pattern => generate(false, pattern)} previewDisabled={!ready || visible.length < 3} disabled={busy}/>}

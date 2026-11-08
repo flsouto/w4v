@@ -37,6 +37,21 @@ try {
   assert.equal(await page.locator(targets.libraryItem).count(),2);
   assert.deepEqual(await page.locator(targets.libraryName).allTextContents(),['first.wav','second.wav']);
   const catalog=await capture.getCatalog();assert.ok(catalog.blenders.includes('dim'));assert.ok(catalog.blenders.includes('glitch'));assert.ok(catalog.effects.includes('reverse'));
+  await capture.setPresentation({mixer:'random',fx:'random'});
+  for (const [select,button] of [[targets.mixer,targets.randomMixer],[targets.fx,targets.randomFx]]) {
+    assert.equal(await page.locator(select).inputValue(),'random');
+    assert.equal(await page.locator(select).isDisabled(),true);
+    assert.equal(await page.locator(`${select} option:checked`).innerText(),'random');
+    assert.equal(await page.locator(button).getAttribute('aria-pressed'),'true');
+  }
+  await capture.showLoop({id:fixtures[0].id});await capture.assertFits();
+  await capture.setPresentation({bpm:120});
+  assert.equal(await page.locator(targets.randomMixer).getAttribute('aria-pressed'),'true');
+  assert.equal(await page.locator(targets.randomFx).getAttribute('aria-pressed'),'true');
+  await assert.rejects(capture.setPresentation({mixer:'missing'}),/Unknown capture mixer/);
+  await capture.setPresentation({mixer:'dim'});
+  assert.equal(await page.locator(targets.randomMixer).getAttribute('aria-pressed'),'false');
+  assert.equal(await page.locator(targets.randomFx).getAttribute('aria-pressed'),'true');
   const glitch=await page.evaluate(async()=>{
     const {Engine}=await import('/src/engine.js');const engine=new Engine();
     try {
@@ -53,6 +68,7 @@ try {
   for(const loop of fixtures) {
     await capture.setPresentation({showUrl:true,bpm:loop.bpm,mixer:'dim',fx:'reverse'});
     await capture.showLoop({id:loop.id,excerptSeconds:loop.duration/4});await capture.assertFits();
+    assert.equal(await page.locator(targets.randomMixer).getAttribute('aria-pressed'),'false');assert.equal(await page.locator(targets.randomFx).getAttribute('aria-pressed'),'false');
     assert.equal(await page.locator(targets.mixer).inputValue(),'dim');assert.equal(await page.locator(targets.fx).inputValue(),'reverse');
     assert.equal(Number(await page.locator(targets.tempo).inputValue()),loop.bpm);
     assert.equal(await page.locator('[data-capture="address"]').innerText(),'https://daw.looplicator.com');
@@ -77,13 +93,13 @@ try {
   await browser.close();browser=undefined;await server.close();server=undefined;
   // Run the real CLI, encoder, history isolation, and final compilation pipeline.
   await new Promise((resolve,reject)=>{
-    const child=spawn(process.execPath,[join(root,'scripts/render-videos.mjs'),'--input',input,'--last','2','--portion','1/4','--cycles','2','--fps','6','--size','1280x800','--show-url','--random-ui','--output',output,'--history',join(directory,'history.txt'),'--no-history-sync'],{cwd:root,stdio:'inherit'});
+    const child=spawn(process.execPath,[join(root,'scripts/render-videos.mjs'),'--input',input,'--last','2','--portion','1/4','--cycles','2','--fps','6','--size','1280x800','--show-url','--random-ui','--mixer','random','--fx','random','--output',output,'--history',join(directory,'history.txt'),'--no-history-sync'],{cwd:root,stdio:'inherit'});
     child.once('error',reject);child.once('close',code=>code===0?resolve():reject(new Error(`Renderer smoke exited ${code}`)));
   });
   const manifests=(await readdir(output)).filter(name=>name.startsWith('render-')&&name.endsWith('.json'));
   const manifest=JSON.parse(await readFile(join(output,manifests[0]),'utf8'));
   assert.equal(manifest.captureApiVersion,1);assert.equal(manifest.loops.length,2);assert.equal(manifest.compilation.status,'complete');
-  assert.equal(manifest.encodingProfile,'pcm-f32-aac384-v1');assert.deepEqual(manifest.loops.map(loop=>loop.ui.bpm),[120,240]);
+  assert.equal(manifest.encodingProfile,'pcm-f32-aac384-v1');assert.deepEqual(manifest.loops.map(loop=>loop.ui.bpm),[120,240]);assert.ok(manifest.loops.every(loop=>loop.ui.mixer==='random'&&loop.ui.fx==='random'));
   const probe=JSON.parse(execFileSync('ffprobe',['-v','error','-show_entries','stream=codec_type,codec_name,duration,sample_rate,channels','-of','json',join(output,'compilation.mp4')],{encoding:'utf8'}));
   const video=probe.streams.find(stream=>stream.codec_type==='video'),audio=probe.streams.find(stream=>stream.codec_type==='audio');
   assert.equal(audio.codec_name,'aac');assert.equal(audio.sample_rate,'48000');assert.equal(audio.channels,2);

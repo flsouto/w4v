@@ -9,6 +9,7 @@ export async function connectCapture(page) {
     apiVersion:CAPTURE_API_VERSION,
     loadBatch:loops=>page.evaluate(loops=>window.__looplicatorCapture.loadBatch({loops}),loops),
     getCatalog:()=>page.evaluate(()=>window.__looplicatorCapture.getCatalog()),
+    // Mixer/FX accept engine names, '' for unknown metadata, or 'random'.
     setPresentation:options=>page.evaluate(options=>window.__looplicatorCapture.setPresentation(options),options),
     showLoop:options=>page.evaluate(options=>window.__looplicatorCapture.showLoop(options),options),
     renderFrame:time=>page.evaluate(time=>window.__looplicatorCapture.renderFrame({time}),time),

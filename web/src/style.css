@@ -213,3 +213,8 @@ input.audio-seek {
 .support-links a { text-decoration: none; text-align: center; }
 
 .support-dialog > .actions { justify-content: flex-end; }
+
+.library-recovery { border: 1px solid #6c6650; border-radius: 6px; padding: 12px; margin: 12px 0; font-size: 12px; line-height: 1.6; }
+.library-recovery p { margin: 0 0 10px; overflow-wrap: anywhere; }
+.library-recovery button { padding: 6px 9px; font-size: 12px; }
+.library-recovery details { margin-top: 8px; }

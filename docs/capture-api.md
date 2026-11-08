@@ -6,7 +6,7 @@ The development-only adapter exposes `window.__looplicatorCapture` when Vite run
 
 - `loadBatch({loops})`: replace the displayed library and reset the active output/timeline. Each loop has a unique string `id`, string `name`, and browser-accessible `url`; optional `duration`, `size`, and `lastModified` populate the library. Does not write IndexedDB.
 - `showLoop({id, url?, excerptSeconds?})`: display an existing batch loop and draw its decoded waveform. An optional URL supplies a stable audio snapshot instead of the library URL. `excerptSeconds` defaults to the full loop. Resolves after the UI paints, returning `{id, duration, excerptDuration}`. Never plays or changes the source audio.
-- `setPresentation({showUrl?, bpm?, mixer?, fx?})`: update cosmetic controls. BPM must be a positive whole number. Empty mixer/FX strings show unknown metadata; other choices must exist in the real engine catalog. Presentation does not run a mixer, apply FX, or change video audio/timing. Resolves after paint.
+- `setPresentation({showUrl?, bpm?, mixer?, fx?})`: update cosmetic controls. BPM must be a positive whole number. Empty mixer/FX strings show unknown metadata; `random` displays that option with its shuffle button toggled on and its editing checklist collapsed for capture; named choices must exist in the real engine catalog. Setting a named or empty choice turns that control’s shuffle button off. Omitting a choice preserves its state. This is a backwards-compatible addition to v1. Presentation does not run a mixer, apply FX, or change video audio/timing. Resolves after paint.
 - `renderFrame({time})`: render an absolute nonnegative elapsed time in seconds. The adapter wraps the playhead/timer at the selected excerpt boundary, then resolves after paint with `{time, position, duration, excerptDuration}`. The screenshot caller does not advance HTML media playback or inspect React state.
 - `getCatalog()`: load the actual WASM catalog and return sorted `{blenders, effects}`. Requires the generated WASM package.
 
@@ -14,7 +14,7 @@ The renderer owns source selection, immutable file snapshots, frame cadence, aud
 
 ## Stable capture targets
 
-`CAPTURE_TARGETS` exports selectors for the app/header, library/items/names/count, mixer, FX, tempo, output, waveform, player, timeline, playhead, and clock. They use explicit `data-capture` attributes, not CSS classes. Preserve their semantic meaning when restyling or moving components. Only `capture-client.mjs` handles output-fit checks; the main renderer does not know component nesting or styling classes.
+`CAPTURE_TARGETS` exports selectors for the app/header, library/items/names/count, mixer, FX, shuffle buttons (`randomMixer` / `randomFx`), tempo, output, waveform, player, timeline, playhead, and clock. They use explicit `data-capture` attributes, not CSS classes. Preserve their semantic meaning when restyling or moving components. Only `capture-client.mjs` handles output-fit checks; the main renderer does not know component nesting or styling classes.
 
 ## Required compatibility gate
 

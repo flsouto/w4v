@@ -51,7 +51,12 @@ export function parseOptions(values) {
   const parts = text.split('/');
   const portion = parts.length === 2 ? Number(parts[0]) / Number(parts[1]) : Number(text);
   if (parts.length > 2 || !Number.isFinite(portion) || portion <= 0 || portion > 1) throw new Error('--portion must be a fraction or decimal greater than 0 and at most 1');
-  return { last, cycles, fps, width, height, seconds, portion, showUrl: Boolean(values['show-url']), randomUi: Boolean(values['random-ui']) };
+  const mixer = values.mixer;
+  const fx = values.fx;
+  for (const [key, choice] of [['mixer', mixer], ['fx', fx]]) {
+    if (choice !== undefined && choice !== '' && !/^[a-z][a-z0-9]*$/.test(choice)) throw new Error(`--${key} must be an engine option or random`);
+  }
+  return { mixer, fx, last, cycles, fps, width, height, seconds, portion, showUrl: Boolean(values['show-url']), randomUi: Boolean(values['random-ui']) };
 }
 
 export async function fingerprintFiles(directory) {
