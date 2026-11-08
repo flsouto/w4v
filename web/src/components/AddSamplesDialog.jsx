@@ -27,7 +27,7 @@ export function AddSamplesDialog({ onClose, onComputer, onLoadPack, progress, mi
     dialog.current.querySelector('input[name="store-pack"]:checked')?.closest('label')?.scrollIntoView({ block: 'nearest' });
   }, [selected]);
   async function load(pack = packs.find(pack => pack.id === selected)) {
-    if (!pack || !pack.tracks.length || loading) return;
+    if (!pack || !pack.trackCount || loading) return;
     setSelected(pack.id);
     const controller = new AbortController();
     importController.current = controller;
@@ -47,14 +47,14 @@ export function AddSamplesDialog({ onClose, onComputer, onLoadPack, progress, mi
         <fieldset className="store-packs" disabled={loading} aria-label="Store packs"><legend className="sr-only">Choose one pack</legend>
           {!packs.length && <p>No packs are available.</p>}
           {packs.map(pack => <label className={`store-pack ${selected === pack.id ? 'selected' : ''}`} key={pack.id}>
-            <input type="radio" name="store-pack" value={pack.id} checked={selected === pack.id} disabled={!pack.tracks.length} onChange={() => { setSelected(pack.id); setResult(null); }}/>
+            <input type="radio" name="store-pack" value={pack.id} checked={selected === pack.id} disabled={!pack.trackCount} onChange={() => { setSelected(pack.id); setResult(null); }}/>
             <PackThumbnail key={pack.thumbnail} url={pack.thumbnail}/>
-            <span><strong>{pack.title}</strong><span className="muted">{pack.id} · {pack.tracks.length} {pack.tracks.length === 1 ? 'track' : 'tracks'}{!pack.tracks.length && ' · No MP3 tracks'} · {pack.price === 0 ? 'Free' : 'No sample downloads'}</span></span>
+            <span><strong>{pack.title}</strong><span className="muted">{pack.id} · {pack.trackCount} {pack.trackCount === 1 ? 'track' : 'tracks'}{!pack.trackCount && ' · No MP3 tracks'} · {pack.price === 0 ? 'Free' : 'No sample downloads'}</span></span>
           </label>)}
         </fieldset>
         {loading && progress && <div className="upload-progress" role="status"><span><strong>{packs.find(pack => pack.id === selected)?.title}</strong> · {progress.stage} · {progress.track} · {progress.completed} / {progress.total}</span><progress aria-label="Store pack progress" value={progress.completed} max={progress.total}/></div>}
         {result && <div className="store-result" role="status"><p>{resultText}</p>{result.failures.length > 0 && <details><summary>Failed tracks</summary><ul>{result.failures.map((failure, index) => <li key={index}>{failure}</li>)}</ul><p>You can load this pack again to retry; existing tracks will be skipped.</p></details>}</div>}
-        <div className="actions">{loading ? <button type="button" onClick={() => importController.current?.abort()}>Stop loading</button> : <><button type="button" disabled={!selected} onClick={() => load()}>Load selected pack</button><button type="button" disabled={!packs.some(pack => pack.tracks.length)} onClick={() => load(randomStorePack(packs))}>Load random pack</button><button type="button" onClick={close}>Done</button></>}</div>
+        <div className="actions">{loading ? <button type="button" onClick={() => importController.current?.abort()}>Stop loading</button> : <><button type="button" disabled={!selected} onClick={() => load()}>Load selected pack</button><button type="button" disabled={!packs.some(pack => pack.trackCount)} onClick={() => load(randomStorePack(packs))}>Load random pack</button><button type="button" onClick={close}>Done</button></>}</div>
       </>}
     </>}
   </dialog>

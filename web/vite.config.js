@@ -1,18 +1,35 @@
 import { defineConfig } from 'vite';
 import { buildNews } from '../scripts/build-news.mjs';
 import { cpSync, mkdirSync, readFileSync, readFile } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { STORE_OUTPUT } from '../scripts/build-store.mjs';
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url)));
 
 let outputDirectory;
+const storeManifest = JSON.parse(readFileSync(resolve(STORE_OUTPUT, 'manifest.json'), 'utf8'));
+
 
 export default defineConfig({
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  define: { __APP_VERSION__: JSON.stringify(version), __STORE_CATALOG_PATH__: JSON.stringify(`store/${storeManifest.catalogFile}`) },
   // Copy only this release's runtime files, under a version-specific namespace.
   // This leaves legacy /w4v_pkg and /assets dependencies intact on the host.
   build: { copyPublicDir: false },
   plugins: [{
+    name: 'compiled-store-in-development',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const path = request.url?.split('?')[0];
+        if (!/^\/store\/(?:catalog-[a-f0-9]+\.json|packs\/[a-zA-Z0-9-]+\.json)$/.test(path)) return next();
+        readFile(resolve(STORE_OUTPUT, path.slice('/store/'.length)), (error, bytes) => {
+          if (error) { response.statusCode = 404; return response.end('Compiled store file not found'); }
+          response.setHeader('Content-Type', 'application/json');
+          response.end(bytes);
+        });
+      });
+    },
+  }, {
     name: 'news-in-development',
     apply: 'serve',
     configureServer(server) {
@@ -65,6 +82,7 @@ export default defineConfig({
     closeBundle() {
       const output = outputDirectory;
       buildNews(output);
+      for (const path of storeManifest.files) { const target = resolve(output, 'store', path); mkdirSync(dirname(target), { recursive: true }); cpSync(resolve(STORE_OUTPUT, path), target); }
       mkdirSync(resolve(output, 'engine'), { recursive: true });
       cpSync(new URL('./public/w4v_pkg', import.meta.url), resolve(output, 'engine', `v${version}`), { recursive: true });
       cpSync(new URL('./public/looplicator.png', import.meta.url), resolve(output, 'looplicator.png'));

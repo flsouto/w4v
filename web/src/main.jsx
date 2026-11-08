@@ -114,7 +114,7 @@ function App() {
   async function loadStorePack(pack, signal) {
     if (uploading.current) throw new Error('Another import is still running.');
     uploading.current = true; setMessage('');
-    setUploadProgress({ completed: 0, total: pack.tracks.length, stage: 'Starting', track: pack.title });
+    setUploadProgress({ completed: 0, total: pack.trackCount, stage: 'Starting', track: pack.title });
     let lastId;
     try {
       const result = await importStorePack(pack, {

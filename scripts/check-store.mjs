@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { preview } from 'vite';
+import { parseStoreCatalog } from '../web/src/services/looplicator-store.js';
 import JSZip from 'jszip';
 import { chromium } from 'playwright';
 
@@ -20,6 +21,17 @@ try {
   server = await preview({ root: join(root, 'web'), configFile: join(root, 'web/vite.config.js'), logLevel: 'error', preview: { host: '127.0.0.1', port: 29000 + Math.floor(Math.random() * 1000), strictPort: false } });
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext(), page = await context.newPage();
+  const localOrigin = `http://127.0.0.1:${server.httpServer.address().port}`;
+  const compiledManifest = JSON.parse(await readFile(join(root,'web/.generated/store/manifest.json'),'utf8'));
+  const compiledResponse = await context.request.get(`${localOrigin}/store/${compiledManifest.catalogFile}`);
+  assert.equal(compiledResponse.status(),200);
+  const compiledIndex = await compiledResponse.json();
+  assert.equal(compiledIndex.length,compiledManifest.packs);
+  assert.ok(compiledIndex.every(pack=>!('tracks' in pack)),'The index must not carry every pack’s track list');
+  const compiledPack = compiledIndex.find(pack=>pack.trackCount>0);
+  const compiledTracksResponse = await context.request.get(`${localOrigin}/store/${compiledPack.tracksPath}`);
+  assert.equal(compiledTracksResponse.status(),200);
+  assert.equal((await compiledTracksResponse.json()).length,compiledPack.trackCount);
   const base = 'https://looplipacker.s3.amazonaws.com';
   const catalog = {
     '2026-01-01': { title: 'Older pack', price: 0, cover_url: `${base}/broken.jpg`, tracks: [{ title: 'Old loop', url: `${base}/old.mp3` }] },
@@ -29,11 +41,19 @@ try {
   };
   let catalogCalls = 0, failMissing = true, releaseSlow;
   const trackRequests = [];
+  const compiledPacks = parseStoreCatalog(catalog);
+  await page.route('**/store/catalog*.json', route => {
+    catalogCalls++;
+    return route.fulfill(catalogCalls === 1 ? {status:503,body:'Unavailable'} : {status:200,json:compiledPacks.map(({tracks,...pack})=>({...pack,trackCount:tracks.length,tracksPath:`packs/${pack.id}.json`}))});
+  });
+  await page.route('**/store/packs/*.json', route => {
+    const id = new URL(route.request().url()).pathname.split('/').at(-1).replace('.json','');
+    return route.fulfill({status:200,json:compiledPacks.find(pack=>pack.id===id).tracks});
+  });
   await page.route(`${base}/**`, async route => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/looplishop.json') {
-      catalogCalls++;
-      return route.fulfill(catalogCalls === 1 ? { status: 503, body: 'Unavailable' } : { status: 200, json: catalog });
+      throw new Error('The browser must never fetch the upstream store feed');
     }
     if (path === '/thumb.png') return route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a/FsAAAAASUVORK5CYII=', 'base64') });
     if (path.endsWith('.jpg')) return route.fulfill({ status: 404, body: 'Missing image' });
@@ -132,6 +152,11 @@ try {
   assert.equal(await page.locator('article').count(), 4);
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('dialog[open]').count(), 0);
+  await page.getByRole('button',{name:'Add files',exact:true}).click();
+  await page.getByRole('button',{name:'Load from Looplicator store',exact:true}).click();
+  await dialog.getByRole('radio',{name:/Fixture pack/}).waitFor();
+  assert.equal(catalogCalls,2,'Reopening the store must reuse the compiled catalog already fetched');
+  await page.keyboard.press('Escape');
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll('article').length === 4);
   const freeZipDownload = page.waitForEvent('download');

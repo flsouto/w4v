@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchStoreCatalog, importStorePack, parseStoreCatalog, randomStorePack, storeTrackId, STORE_URL } from '../src/services/looplicator-store.js';
+import { fetchStoreCatalog, fetchStoreTracks, importStorePack, parseStoreCatalog, randomStorePack, storeTrackId, COMPILED_STORE_URL } from '../src/services/looplicator-store.js';
 
 const pack = { id: '2026-01-30', title: 'Atmoskribe', price: 10, tracks: [
   { title: 'L001 117BPM', url: 'https://example.test/one.mp3' },
@@ -23,10 +23,10 @@ test('store catalog uses dated packs, newest first, and valid unique MP3 tracks'
   assert.deepEqual(catalog[1].tracks, []);
   for (const invalid of [null, [], 'invalid']) assert.throws(() => parseStoreCatalog(invalid), /invalid pack catalog/);
 });
-test('catalog fetch uses HTTPS and reports HTTP errors', async () => {
+test('catalog fetch uses the compiled same-origin URL and reports HTTP errors', async () => {
   const signal = new AbortController().signal;
   await assert.rejects(fetchStoreCatalog(signal, async (url, options) => {
-    assert.equal(url, STORE_URL); assert.equal(options.signal, signal);
+    assert.equal(url, COMPILED_STORE_URL); assert.equal(options.signal, signal);
     return new Response('', { status: 503 });
   }), /HTTP 503/);
 });
@@ -100,4 +100,29 @@ test('catalog prices distinguish explicitly free packs from paid or unknown pric
   for (const [price, expected] of [[0, 0], [12.5, 12.5], [null, null], [undefined, null], ['0', null], [-1, null]]) {
     assert.equal(parseStoreCatalog({ '2026-01-30': { price } })[0].price, expected);
   }
+});
+
+test('compiled catalog contains only pack summaries and tracks are fetched on demand', async () => {
+  const signal = new AbortController().signal;
+  const metadata = {id:pack.id,title:pack.title,price:pack.price,thumbnail:null,trackCount:2,tracksPath:'packs/2026-01-30-hash.json'};
+  const requests = [];
+  const fetcher = async url => {
+    requests.push(url);
+    return Response.json(url === COMPILED_STORE_URL ? [metadata] : pack.tracks);
+  };
+  assert.deepEqual(await fetchStoreCatalog(signal, fetcher), [metadata]);
+  assert.deepEqual(requests, [COMPILED_STORE_URL]);
+  assert.deepEqual(await fetchStoreTracks(metadata, signal, fetcher), pack.tracks);
+  assert.equal(requests.at(-1), '/store/packs/2026-01-30-hash.json');
+  await assert.rejects(fetchStoreTracks({...metadata,tracksPath:'https://example.test/other.json'},signal,fetcher),/Invalid compiled pack path/);
+});
+
+test('cancelling while loading the compiled track list reports a stopped import', async () => {
+  const controller = new AbortController();
+  const result = await importStorePack({id:'2026-01-30',trackCount:2,tracksPath:'packs/2026-01-30-hash.json'}, {
+    signal:controller.signal,
+    fetcher:async () => {controller.abort();throw controller.signal.reason;},
+    convert:async () => assert.fail('Must not convert cancelled imports'), save:async () => assert.fail('Must not save cancelled imports'),
+  });
+  assert.deepEqual(result,{added:0,skipped:0,failures:[],cancelled:true});
 });
